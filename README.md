@@ -11,7 +11,7 @@ Esta es una aplicación de escritorio desarrollada utilizando **Electron**, que 
 - **Menú contextual personalizado**: Se ha habilitado un menú contextual con opciones como cortar, copiar, pegar, recargar, imprimir, y más.
 - **Recarga automática**: La aplicación permite recargar la página de Office 365 Web® fácilmente desde el menú contextual.
 - **Pestañas independientes**: La aplicación genera pestañas independientes con cada archivo que se abre, de esta forma mantenemos una pestaña principal como organizador y pestañas al estilo navegador web con los archivos dentro editables.
-- **xml basico de configuracion**: config.xml permite ingresar la URL de inicio donde de esta forma podemos elegir si utilizamos una cuenta personal o de empresa.
+- **xml basico de configuracion**: config.xml permite ingresar la URL de inicio donde de esta forma podemos elegir si utilizamos una cuenta personal o de empresa. NO ESTA FUNCIONANDO AUN.
   
 ## Tecnologías utilizadas
 
