@@ -1,0 +1,38 @@
+{
+    "name": "Copilot-365",
+    "version": "1.0.0",
+    "description": "Aplicación de escritorio para Copilot 365",
+    "author": "Juan Bau <jgomezbau@gmail.com>",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron .",
+      "build": "electron-builder"
+    },
+    "build": {
+      "appId": "copilot-365",
+      "productName": "Copilot 365",
+      "directories": {
+        "output": "dist"
+      },
+      "files": [
+        "main.js",
+        "src/**/*",
+        "icons/**/*",
+        "config.xml"
+      ],
+      "linux": {
+        "target": [
+          "AppImage",
+          "tar.gz"
+        ],
+        "icon": "icons/icon.png"
+      }
+    },
+    "devDependencies": {
+      "electron": "^27.0.0",
+      "electron-builder": "^25.1.8"
+    },
+    "dependencies": {
+      "fast-xml-parser": "^4.3.0"
+    }
+  }

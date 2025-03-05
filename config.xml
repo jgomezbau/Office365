@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <application>
+    <name>Office365</name>
+    <version>1.0.0</version>
+  </application>
+  <settings>
+    <!-- URL to open in the browser auth=1 Personal auth=2 Empresa-->
+    <mainUrl>https://m365.cloud.microsoft/?auth=2</mainUrl> 
+  </settings>
+</configuration>

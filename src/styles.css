@@ -1,0 +1,56 @@
+body {
+    margin: 0;
+    font-family: sans-serif;
+  }
+  
+  /* Barra de pestañas (40px de alto) */
+  #tab-bar {
+    height: 40px;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    white-space: nowrap;
+    border-bottom: 1px solid #ccc;
+    padding: 0 5px;
+  }
+  
+  /* Contenedor para las pestañas */
+  #tabs {
+    display: flex;
+    flex: 1;
+  }
+  
+  .tab {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    margin-right: 2px;
+    cursor: pointer;
+    background-color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    font-size: 12px; /* Texto reducido */
+  }
+  
+  .tab.active {
+    background-color: #fff;
+    font-weight: bold;
+  }
+  
+  .tab button {
+    margin-left: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+  
+  #new-tab-btn {
+    padding: 8px 12px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    background-color: #e0e0e0;
+    font-size: 1.2em;
+  }
