@@ -1,7 +1,7 @@
 {
-    "name": "Copilot-365",
+    "name": "Microsoft365Copilot",
     "version": "1.0.0",
-    "description": "Aplicación de escritorio para Copilot 365",
+    "description": "Aplicación de escritorio para Microsoft 365 Copilot",
     "author": "Juan Bau <jgomezbau@gmail.com>",
     "main": "main.js",
     "scripts": {
@@ -9,8 +9,8 @@
       "build": "electron-builder"
     },
     "build": {
-      "appId": "copilot-365",
-      "productName": "Copilot 365",
+      "appId": "Microsoft-365-Copilot",
+      "productName": "Microsoft 365 Copilot",
       "directories": {
         "output": "dist"
       },

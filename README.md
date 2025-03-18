@@ -1,15 +1,16 @@
-# Copilot Office 365® Desktop App
+# Microsoft 365® Copilot Desktop App
+# Seguimos trabajando en mejorarlo
 
 **Versión 1.0.0**
 
-Esta es una aplicación de escritorio desarrollada utilizando **Electron**, que permite a los usuarios interactuar con **Office 365 WEB®** de manera independiente del navegador. El objetivo de este proyecto es proporcionar una experiencia de usuario más fluida y accesible para aquellos que prefieren tener Office 365® en su escritorio sin poder utilizar la aplicacion oficial (No hay aplicacion para Linux... :( ).
+Esta es una aplicación de escritorio desarrollada utilizando **Electron**, que permite a los usuarios interactuar con **Microsoft 365® Copilot WEB®** de manera independiente del navegador. El objetivo de este proyecto es proporcionar una experiencia de usuario más fluida y accesible para aquellos que prefieren tener Office 365® en su escritorio sin poder utilizar la aplicacion oficial (No hay aplicacion para Linux... :( ).
 
 ## Características
 
-- **Interfaz Independiente**: Ejecuta Office 365 Web® directamente en el escritorio sin necesidad de un navegador web.
+- **Interfaz Independiente**: Ejecuta Microsoft 365 Copilot Web® directamente en el escritorio sin necesidad de un navegador web.
 - **Permisos para cámara y micrófono**: La aplicación está configurada para solicitar permisos de acceso a la cámara y micrófono cuando sea necesario.
 - **Menú contextual personalizado**: Se ha habilitado un menú contextual con opciones como cortar, copiar, pegar, recargar, imprimir, y más.
-- **Recarga automática**: La aplicación permite recargar la página de Office 365 Web® fácilmente desde el menú contextual.
+- **Recarga automática**: La aplicación permite recargar la página de Microsoft 365® Copilot Web fácilmente desde el menú contextual.
 - **Pestañas independientes**: La aplicación genera pestañas independientes con cada archivo que se abre, de esta forma mantenemos una pestaña principal como organizador y pestañas al estilo navegador web con los archivos dentro editables.
 - **xml basico de configuracion**: config.xml permite ingresar la URL de inicio donde de esta forma podemos elegir si utilizamos una cuenta personal o de empresa. NO ESTA FUNCIONANDO AUN.
   
@@ -33,7 +34,7 @@ Antes de comenzar, asegúrate de tener lo siguiente instalado:
 1. **Clonar el repositorio**:
 
    ```bash
-   git clone https://github.com/jgomezbau/chatgpt-app.git
+   git clone https://github.com/jgomezbau/Office365.git
 
 # Uso
 **Menú contextual**: 

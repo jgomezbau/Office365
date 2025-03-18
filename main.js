@@ -39,7 +39,7 @@ function createMainWindow() {
   const mainUrl = configManager.getMainUrl();
   console.log(`Iniciando aplicación con URL: ${mainUrl}`);
   
-  // Crear la pestaña inicial con la URL de Office 365 Web desde la configuración
+  // Crear la pestaña inicial con la URL de Microsoft 365® Copilot  Web desde la configuración
   createTab(mainUrl, true);
 
   mainWindow.on('resize', () => {

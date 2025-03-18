@@ -84,7 +84,7 @@ class ConfigManager {
         const defaultConfig = `<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
   <application>
-    <name>Office365</name>
+    <name>Microsoft 365 Copilot</name>
     <version>1.0.0</version>
   </application>
   <settings>
