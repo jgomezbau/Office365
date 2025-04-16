@@ -1,4 +1,4 @@
-const { app, BrowserWindow, BrowserView, ipcMain, session, Menu, shell, dialog, clipboard } = require('electron');
+const { app, BrowserWindow, BrowserView, ipcMain, session, Menu, shell, dialog, clipboard, Tray } = require('electron'); // Añadir Tray
 const path = require('path');
 const configManager = require('./src/config/configManager');
 const os = require('os');
@@ -8,6 +8,7 @@ const { getAvailableAppsForFile, downloadAndOpenWithApp, detectFileType } = requ
 // Verificar si estamos en desarrollo
 const isDev = process.env.IS_DEV === 'true';
 let mainWindow;
+let tray = null; // Variable para mantener la referencia al Tray
 
 // Objeto para administrar las pestañas
 let tabManager = {
@@ -101,9 +102,16 @@ function createMainWindow() {
     mainWindow = null;
   });
   
-  // Al cerrar, NO guardamos el estado de las pestañas
-  mainWindow.on('close', () => {
-    // Intencionalmente vacío - no guardamos pestañas entre sesiones
+  // Modificar el comportamiento al cerrar la ventana
+  mainWindow.on('close', (event) => {
+    // En lugar de cerrar, ocultar la ventana si el tray está activo
+    if (tray && !app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    } else {
+      // Comportamiento normal de cierre si no hay tray o si se está saliendo
+      return true;
+    }
   });
   
   // Abrir links externos en el navegador predeterminado
@@ -498,6 +506,49 @@ function showWebNotification(message, type = 'info') {
   }
 }
 
+// Crear el icono de la bandeja del sistema
+function createTray() {
+  const iconPath = path.join(__dirname, 'icons', 'icon.png'); // Asegúrate que la ruta al icono es correcta
+  tray = new Tray(iconPath);
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Mostrar/Ocultar',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+        }
+      }
+    },
+    {
+      label: 'Recargar App',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.reload();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Salir',
+      click: () => {
+        app.isQuitting = true; // Marcar que se está saliendo intencionadamente
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setToolTip('Microsoft 365 Copilot');
+  tray.setContextMenu(contextMenu);
+
+  // Opcional: Abrir la ventana al hacer clic en el icono del tray
+  tray.on('click', () => {
+    if (mainWindow) {
+      mainWindow.isVisible() ? mainWindow.focus() : mainWindow.show();
+    }
+  });
+}
+
 // Iniciar la aplicación una vez que esté lista
 app.whenReady().then(() => {
   // Configurar permisos para medios (cámara, micrófono)
@@ -528,6 +579,7 @@ app.whenReady().then(() => {
   });
 
   createMainWindow();
+  createTray(); // Crear el icono del tray
   
   // Registrar protocolo deep-link personalizado (ms365://)
   if (process.defaultApp) {
@@ -549,12 +601,29 @@ app.whenReady().then(() => {
   }
 });
 
-// Solo en macOS: volver a crear ventana al hacer clic en el dock
-app.on('activate', () => {
-  if (mainWindow === null) createMainWindow();
+// Manejar el evento before-quit para asegurar la salida correcta
+app.on('before-quit', () => {
+  app.isQuitting = true;
 });
 
-// Cerrar todas las ventanas
+// Solo en macOS: volver a crear ventana al hacer clic en el dock
+app.on('activate', () => {
+  // Si no hay ventanas abiertas y el dock es clickeado, mostrar la ventana principal
+  if (BrowserWindow.getAllWindows().length === 0) {
+     if (mainWindow) {
+       mainWindow.show();
+     } else {
+       createMainWindow();
+     }
+  } else if (mainWindow) {
+     mainWindow.show(); // Asegura que la ventana se muestre si estaba oculta
+  }
+});
+
+// Cerrar la aplicación solo si no estamos en macOS o si se fuerza la salida
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // En macOS, la aplicación generalmente permanece activa hasta que el usuario la cierra explícitamente
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
