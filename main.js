@@ -21,8 +21,7 @@ let tabManager = {
     this.tabs = [];
     this.activeTabId = null;
     this.nextTabId = 1;
-    
-    console.log("TabManager inicializado sin cargar pestañas guardadas");
+    // console.log("TabManager inicializado sin cargar pestañas guardadas");
   },
   // No guardar pestañas entre sesiones
   saveTabs: function() {
@@ -60,8 +59,7 @@ function createMainWindow() {
   // Producción: cargar desde el archivo HTML compilado
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
-    // Abrir DevTools en desarrollo
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
   } else {
     // Corrected path to load from the 'src' directory
     mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
@@ -72,24 +70,16 @@ function createMainWindow() {
     mainWindow.show();
     mainWindow.maximize();
 
-      // IMPORTANTE: Limpiar el almacenamiento de pestañas anteriores
-    // Eliminar completamente todas las pestañas guardadas anteriormente
+    // IMPORTANTE: Limpiar el almacenamiento de pestañas anteriores
     tabManager.tabs = [];
     tabManager.activeTabId = null;
     tabManager.nextTabId = 1;
-    
-    // Limpiar también el almacenamiento persistente
     configManager.saveTabs([]);
     configManager.setActiveTabId(null);
-    
-    console.log("Limpiando todas las pestañas anteriores");
-    
-    // Obtener la URL principal
+    // console.log("Limpiando todas las pestañas anteriores");
     const mainUrl = configManager.getMainUrl();
-
-    // Crear una nueva pestaña limpia
     setTimeout(() => {
-      console.log("Creando pestaña inicial limpia");
+      // console.log("Creando pestaña inicial limpia");
       createTab(mainUrl, true);
     }, 100);
   });
@@ -282,7 +272,7 @@ function updateActiveTabBounds() {
 function createTab(url, makeActive = false) {
   if (!mainWindow) return null;
 
-  console.log(`Creando nueva pestaña con URL: ${url}, makeActive: ${makeActive}`);
+  // console.log(`Creando nueva pestaña con URL: ${url}, makeActive: ${makeActive}`);
   
   const view = createBrowserView();
 
@@ -311,7 +301,7 @@ function createTab(url, makeActive = false) {
   
   // Si es la pestaña activa, ponerla en primer plano inmediatamente
   if (makeActive) {
-    console.log(`Activando pestaña ${tabId} inmediatamente`);
+    // console.log(`Activando pestaña ${tabId} inmediatamente`);
     switchTab(tabId);
   }
   
@@ -330,7 +320,7 @@ function createTab(url, makeActive = false) {
         showWebNotification('Abriendo enlace externo en el navegador');
       }
     } catch (error) {
-      console.error('Error en navegación:', error);
+      // console.error('Error en navegación:', error);
     }
   });
   
@@ -343,11 +333,11 @@ function createTab(url, makeActive = false) {
   
   // Actualizar pestañas después de cargar
   view.webContents.on('did-finish-load', () => {
-    console.log(`Pestaña ${tabId} cargada: ${view.webContents.getTitle()}`);
+    // console.log(`Pestaña ${tabId} cargada: ${view.webContents.getTitle()}`);
     
     // Si esta pestaña debe ser activa, asegurarse de activarla de nuevo
     if (makeActive && tabManager.activeTabId === tabId) {
-      console.log(`Reactivando pestaña ${tabId} después de cargar`);
+      // console.log(`Reactivando pestaña ${tabId} después de cargar`);
       mainWindow.addBrowserView(view);
       updateActiveTabBounds();
       sendTabsUpdate();
@@ -357,13 +347,13 @@ function createTab(url, makeActive = false) {
   // Intercepta nuevos popups para que se abran como pestañas
   view.webContents.setWindowOpenHandler(({ url }) => {
     if (shouldOpenInternally(url)) {
-      console.log('Abriendo internamente:', url);
+      // console.log('Abriendo internamente:', url);
       createTab(url, true);
       return { action: 'deny' };
     }
     
     // Abrir links externos en navegador predeterminado
-    console.log('Abriendo externamente:', url);
+    // console.log('Abriendo externamente:', url);
     shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -376,12 +366,12 @@ function createTab(url, makeActive = false) {
 
 // Cambia la pestaña activa
 function switchTab(tabId) {
-  console.log(`Cambiando a pestaña: ${tabId}`);
+  // console.log(`Cambiando a pestaña: ${tabId}`);
   
   if (tabManager.activeTabId) {
     let current = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
     if (current) {
-      console.log(`Quitando pestaña actual: ${tabManager.activeTabId}`);
+      // console.log(`Quitando pestaña actual: ${tabManager.activeTabId}`);
       mainWindow.removeBrowserView(current.view);
     }
   }
@@ -390,11 +380,11 @@ function switchTab(tabId) {
   let newActive = tabManager.tabs.find(tab => tab.id === tabId);
   
   if (newActive) {
-    console.log(`Añadiendo nueva pestaña activa: ${tabId}`);
+    // console.log(`Añadiendo nueva pestaña activa: ${tabId}`);
     mainWindow.addBrowserView(newActive.view);
     updateActiveTabBounds();
   } else {
-    console.warn(`No se encontró la pestaña ${tabId}`);
+    // console.warn(`No se encontró la pestaña ${tabId}`);
   }
   
   // Guardar pestaña activa
@@ -592,12 +582,12 @@ app.whenReady().then(() => {
   
   // Mostrar información de configuración en la consola (solo en desarrollo)
   if (isDev) {
-    console.log('Información de la aplicación:');
-    console.log(`- Sistema: ${os.platform()} ${os.release()} (${os.arch()})`);
-    console.log(`- Node.js: ${process.versions.node}`);
-    console.log(`- Electron: ${process.versions.electron}`);
-    console.log(`- Modo: ${isDev ? 'Desarrollo' : 'Producción'}`);
-    console.log(`- Directorio de datos: ${app.getPath('userData')}`);
+    // console.log('Información de la aplicación:');
+    // console.log(`- Sistema: ${os.platform()} ${os.release()} (${os.arch()})`);
+    // console.log(`- Node.js: ${process.versions.node}`);
+    // console.log(`- Electron: ${process.versions.electron}`);
+    // console.log(`- Modo: ${isDev ? 'Desarrollo' : 'Producción'}`);
+    // console.log(`- Directorio de datos: ${app.getPath('userData')}`);
   }
 });
 

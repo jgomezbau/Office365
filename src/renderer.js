@@ -232,13 +232,18 @@ function getTabIconPath(url, title) {
   // Microsoft SharePoint
   else if (lowerUrl.includes('sharepoint') || lowerTitle.includes('sharepoint') || 
            lowerUrl.includes('/sites/') || lowerTitle.includes('sitio')) {
-    return '../icons/icon.png'; // Usando el ícono principal como sustituto para SharePoint
+    return '../icons/sharepoint.png'; 
+  } 
+  // Microsoft To Do
+  else if (lowerUrl.includes('to-do') || lowerTitle.includes('to-do') || 
+          lowerUrl.includes('to-do.office')) {
+    return '../icons/todo.png'; 
   } 
   // Centro de administración
   else if (lowerUrl.includes('admin') || lowerTitle.includes('admin') || 
            lowerTitle.includes('administra') || lowerUrl.includes('/adminportal/') ||
            lowerUrl.includes('/admincenter/')) {
-    return '../icons/icon.png'; // Usando el ícono principal para el Centro de Administración
+    return '../icons/admin.png'; 
   } 
   // Microsoft Copilot
   else if (lowerUrl.includes('copilot') || lowerTitle.includes('copilot') ||
