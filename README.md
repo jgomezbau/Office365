@@ -12,8 +12,10 @@ Esta es una aplicación de escritorio desarrollada utilizando **Electron**, que 
 - **Menú contextual personalizado**: Se ha habilitado un menú contextual con opciones como cortar, copiar, pegar, recargar, imprimir, y más.
 - **Recarga automática**: La aplicación permite recargar la página de Microsoft 365® Copilot Web fácilmente desde el menú contextual.
 - **Pestañas independientes**: La aplicación genera pestañas independientes con cada archivo que se abre, de esta forma mantenemos una pestaña principal como organizador y pestañas al estilo navegador web con los archivos dentro editables.
-- **xml basico de configuracion**: config.xml permite ingresar la URL de inicio donde de esta forma podemos elegir si utilizamos una cuenta personal o de empresa. NO ESTA FUNCIONANDO AUN.
-  
+- **Interceptor de URLs inteligente**: Todos los enlaces de Microsoft 365 (SharePoint, OneDrive, Teams, etc.) se abren en nuevas pestañas dentro de la aplicación, sin salir al navegador externo.
+- **Notificaciones para protocolos externos**: Gestión de protocolos especiales de Office (ms-word:, ms-excel:, etc.) con notificaciones al usuario.
+- **XML básico de configuración**: config.xml permite ingresar la URL de inicio donde de esta forma podemos elegir si utilizamos una cuenta personal o de empresa.
+
 ## Tecnologías utilizadas
 
 - **Electron**: Framework para crear aplicaciones de escritorio utilizando tecnologías web.
@@ -35,6 +37,7 @@ Antes de comenzar, asegúrate de tener lo siguiente instalado:
 
    ```bash
    git clone https://github.com/jgomezbau/Office365.git
+   ```
 
 # Uso
 **Menú contextual**: 

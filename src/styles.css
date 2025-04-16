@@ -1,56 +1,490 @@
+/* Microsoft Office 365 Copilot - Estilos modernos */
+
+:root {
+  /* Tema claro (Office 365) */
+  --ms-font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --ms-bg-color: #ffffff;
+  --ms-text-color: #252423;
+  --ms-border-color: #e1dfdd;
+  --ms-tab-bg: #f5f5f5;
+  --ms-tab-bg-active: #ffffff;
+  --ms-tab-hover: #edebe9;
+  --ms-btn-bg: #f3f2f1;
+  --ms-btn-hover: #edebe9;
+  --ms-accent-color: #0078d4;
+  --ms-accent-hover: #106ebe;
+  --ms-shadow-color: rgba(0, 0, 0, 0.08);
+  --ms-header-height: 48px;
+  
+  /* Microsoft logo colors */
+  --ms-red: #f25022;
+  --ms-green: #7fba00;
+  --ms-blue: #00a4ef;
+  --ms-yellow: #ffb900;
+  
+  /* Copilot colors */
+  --ms-copilot-green: #37B966;
+  --ms-copilot-light-green: rgba(55, 185, 102, 0.1);
+}
+
+/* Tema oscuro (Microsoft 365 dark) */
+[data-theme="dark"] {
+  --ms-bg-color: #1f1f1f;
+  --ms-text-color: #f3f2f1;
+  --ms-border-color: #484644;
+  --ms-tab-bg: #2b2b2b;
+  --ms-tab-bg-active: #323130;
+  --ms-tab-hover: #3b3a39;
+  --ms-btn-bg: #323130;
+  --ms-btn-hover: #3b3a39;
+  --ms-accent-color: #2899f5;
+  --ms-accent-hover: #106ebe;
+  --ms-shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Reset general */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 body {
-    margin: 0;
-    font-family: sans-serif;
-  }
-  
-  /* Barra de pestañas (40px de alto) */
-  #tab-bar {
-    height: 40px;
-    background-color: #f0f0f0;
-    display: flex;
-    align-items: center;
-    overflow-x: auto;
-    white-space: nowrap;
-    border-bottom: 1px solid #ccc;
-    padding: 0 5px;
-  }
-  
-  /* Contenedor para las pestañas */
-  #tabs {
-    display: flex;
-    flex: 1;
-  }
-  
-  .tab {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-bottom: none;
-    margin-right: 2px;
-    cursor: pointer;
-    background-color: #e0e0e0;
-    display: flex;
-    align-items: center;
-    font-size: 12px; /* Texto reducido */
-  }
-  
-  .tab.active {
-    background-color: #fff;
-    font-weight: bold;
-  }
-  
-  .tab button {
-    margin-left: 8px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 0.9em;
-  }
-  
-  #new-tab-btn {
-    padding: 8px 12px;
-    cursor: pointer;
-    border: 1px solid #ccc;
-    border-bottom: none;
-    background-color: #e0e0e0;
-    font-size: 1.2em;
-  }
+  font-family: var(--ms-font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ms-text-color);
+  background-color: var(--ms-bg-color);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Barra de pestañas moderna */
+#tab-bar {
+  height: var(--ms-header-height);
+  background-color: var(--ms-bg-color);
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--ms-border-color);
+  padding: 0 8px;
+  -webkit-app-region: drag; /* Permite arrastrar la ventana desde la barra */
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 1px 2px var(--ms-shadow-color);
+}
+
+/* Contenedor para las pestañas */
+#tabs {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  gap: 2px;
+  -webkit-app-region: no-drag; /* Permite interactuar con pestañas */
+}
+
+/* Estilos de pestañas individuales */
+.tab {
+  height: calc(var(--ms-header-height) - 8px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--ms-tab-bg);
+  border-radius: 4px;
+  margin-top: 4px;
+  margin-right: 4px;
+  padding: 0 12px 0 10px;
+  min-width: 180px;
+  max-width: 240px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid transparent;
+  -webkit-app-region: no-drag;
+}
+
+.tab:hover {
+  background-color: var(--ms-tab-hover);
+}
+
+.tab.active {
+  background-color: var(--ms-tab-bg-active);
+  border-bottom: 2px solid var(--ms-accent-color);
+  font-weight: 500;
+}
+
+/* Indicador de Copilot en pestañas */
+.tab::before {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 16px;
+  background-color: var(--ms-copilot-green);
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tab.copilot::before {
+  opacity: 1;
+}
+
+.tab .tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.tab .tab-icon img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.tab .tab-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  font-size: 13px;
+}
+
+.tab .tab-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  margin-left: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.tab:hover .tab-actions,
+.tab.active .tab-actions {
+  opacity: 1;
+}
+
+.tab-reload, .tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ms-text-color);
+  transition: all 0.2s;
+}
+
+.tab-reload:hover, .tab-close:hover {
+  background-color: var(--ms-btn-hover);
+}
+
+.tab-close:hover {
+  background-color: rgba(242, 80, 34, 0.1);
+  color: var(--ms-red);
+}
+
+/* Botón nueva pestaña */
+#new-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background-color: transparent;
+  border: none;
+  color: var(--ms-text-color);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 4px;
+  -webkit-app-region: no-drag;
+}
+
+#new-tab-btn:hover {
+  background-color: var(--ms-btn-hover);
+  transform: scale(1.05);
+}
+
+#new-tab-btn:active {
+  transform: scale(0.95);
+}
+
+/* Botón de configuración */
+#settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background-color: transparent;
+  border: none;
+  color: var(--ms-text-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 4px;
+  -webkit-app-region: no-drag;
+}
+
+#settings-btn:hover {
+  background-color: var(--ms-btn-hover);
+}
+
+/* Logo de Microsoft Copilot (solo ícono) */
+.ms-logo {
+  display: flex;
+  align-items: center;
+  margin: 0 16px 0 8px;
+  -webkit-app-region: drag;
+}
+
+.ms-logo img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Modal de configuración */
+.settings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+
+.settings-modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.settings-modal {
+  background-color: var(--ms-bg-color);
+  border-radius: 8px;
+  width: 500px;
+  max-width: 90%;
+  max-height: 90vh;
+  box-shadow: 0 4px 20px var(--ms-shadow-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(-20px);
+  opacity: 0;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.settings-modal-overlay.visible .settings-modal {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ms-border-color);
+}
+
+.settings-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.settings-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.settings-close-btn:hover {
+  background-color: var(--ms-btn-hover);
+}
+
+.settings-content {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.settings-group {
+  margin-bottom: 20px;
+}
+
+.settings-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.settings-group input,
+.settings-group select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--ms-border-color);
+  border-radius: 4px;
+  background-color: var(--ms-bg-color);
+  color: var(--ms-text-color);
+  font-family: var(--ms-font-family);
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.settings-group input:focus,
+.settings-group select:focus {
+  outline: none;
+  border-color: var(--ms-accent-color);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+.settings-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--ms-border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.settings-footer button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-family: var(--ms-font-family);
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-cancel-btn {
+  background-color: var(--ms-btn-bg);
+  color: var(--ms-text-color);
+}
+
+.settings-cancel-btn:hover {
+  background-color: var(--ms-btn-hover);
+}
+
+.settings-save-btn {
+  background-color: var(--ms-accent-color);
+  color: white;
+}
+
+.settings-save-btn:hover {
+  background-color: var(--ms-accent-hover);
+}
+
+/* Scrollbar al estilo de Office 365 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c8c6c4;
+  border-radius: 10px;
+  border: 2px solid var(--ms-bg-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a19f9d;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #484644;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #5d5b59;
+}
+
+/* Animaciones suaves */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* Estilos de notificación */
+.notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  background-color: var(--ms-bg-color);
+  color: var(--ms-text-color);
+  border-radius: 4px;
+  box-shadow: 0 2px 12px var(--ms-shadow-color);
+  display: flex;
+  align-items: center;
+  max-width: 320px;
+  z-index: 1000;
+  transform: translateY(20px);
+  opacity: 0;
+  transition: transform 0.3s, opacity 0.3s;
+}
+
+.notification.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.notification.success {
+  border-left: 4px solid var(--ms-copilot-green);
+}
+
+.notification.error {
+  border-left: 4px solid var(--ms-red);
+}
+
+.notification .notification-content {
+  flex: 1;
+}
+
+.notification .notification-close {
+  margin-left: 16px;
+  cursor: pointer;
+}

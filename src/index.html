@@ -2,15 +2,75 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Microsoft 365 Copilot</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
 </head>
 <body>
-  <div id="tab-bar">
-    <div id="tabs"></div>
-    <button id="new-tab-btn">+</button>
+  <div id="app" class="app">
+    <div id="tab-bar">
+      <!-- Logo de Microsoft Copilot - solo ícono -->
+      <div class="ms-logo">
+        <img src="../icons/icon.png" alt="Microsoft 365 Copilot" width="24" height="24">
+      </div>
+      
+      <!-- Contenedor de pestañas -->
+      <div id="tabs"></div>
+      
+      <!-- Botones de acción -->
+      <button id="new-tab-btn" title="Nueva pestaña">
+        <span class="material-symbols-rounded">add</span>
+      </button>
+      <button id="settings-btn" title="Configuración">
+        <span class="material-symbols-rounded">settings</span>
+      </button>
+    </div>
+    
+    <!-- El contenido de las pestañas se renderiza como BrowserViews -->
+    
+    <!-- Modal de configuración -->
+    <div id="settings-modal-overlay" class="settings-modal-overlay">
+      <div class="settings-modal">
+        <div class="settings-header">
+          <h2>Configuración</h2>
+          <button class="settings-close-btn" id="settings-close-btn">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </div>
+        <div class="settings-content">
+          <div class="settings-group">
+            <label for="main-url">URL principal</label>
+            <input type="url" id="main-url" placeholder="https://m365.cloud.microsoft/?auth=2">
+            <p class="settings-helper">URL que se cargará en nuevas pestañas</p>
+          </div>
+          
+          <div class="settings-group">
+            <label for="user-agent">User Agent personalizado</label>
+            <input type="text" id="user-agent" placeholder="(Opcional) Personaliza el User Agent">
+            <p class="settings-helper">Deja en blanco para usar el User Agent predeterminado</p>
+          </div>
+          
+          <div class="settings-group">
+            <label for="theme-select">Tema</label>
+            <select id="theme-select">
+              <option value="system">Predeterminado del sistema</option>
+              <option value="light">Claro</option>
+              <option value="dark">Oscuro</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-footer">
+          <button class="settings-cancel-btn" id="settings-cancel-btn">Cancelar</button>
+          <button class="settings-save-btn" id="settings-save-btn">Guardar</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Contenedor de notificaciones -->
+    <div id="notification-container"></div>
   </div>
-  <!-- La zona debajo de 40px está reservada para el contenido de las pestañas (BrowserViews) -->
+  
   <script src="renderer.js"></script>
 </body>
 </html>
