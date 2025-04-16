@@ -48,4 +48,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('show-notification', (event, data) => callback(data));
     return () => ipcRenderer.removeListener('show-notification', callback);
   },
+
+  // Control de ventana
+  windowControl: (action) => ipcRenderer.send('window-control', action),
 });

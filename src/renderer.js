@@ -326,6 +326,25 @@ function handleMainProcessNotifications() {
   });
 }
 
+// Control de ventana (min, max, close)
+function setupWindowControls() {
+  const minBtn = document.getElementById('window-min-btn');
+  const maxBtn = document.getElementById('window-max-btn');
+  const closeBtn = document.getElementById('window-close-btn');
+
+  minBtn.addEventListener('click', () => {
+    window.electronAPI && window.electronAPI.windowControl && window.electronAPI.windowControl('minimize');
+  });
+
+  maxBtn.addEventListener('click', () => {
+    window.electronAPI && window.electronAPI.windowControl && window.electronAPI.windowControl('maximize');
+  });
+
+  closeBtn.addEventListener('click', () => {
+    window.electronAPI && window.electronAPI.windowControl && window.electronAPI.windowControl('close');
+  });
+}
+
 // Inicializar la aplicación
 async function initApp() {
   // Cargar configuración
@@ -386,4 +405,7 @@ async function initApp() {
 }
 
 // Iniciar la aplicación cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', initApp);
+document.addEventListener('DOMContentLoaded', () => {
+  initApp();
+  setupWindowControls();
+});

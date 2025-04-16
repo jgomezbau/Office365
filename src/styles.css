@@ -87,7 +87,6 @@ body {
   flex: 1;
   height: 100%;
   gap: 2px;
-  -webkit-app-region: no-drag; /* Permite interactuar con pestañas */
 }
 
 /* Estilos de pestañas individuales */
@@ -145,15 +144,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   margin-right: 8px;
   flex-shrink: 0;
 }
 
 .tab .tab-icon img {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }
 
@@ -190,6 +189,7 @@ body {
   background-color: transparent;
   border: none;
   cursor: pointer;
+  font-size: 16px;
   color: var(--ms-text-color);
   transition: all 0.2s;
 }
@@ -208,13 +208,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   background-color: transparent;
   border: none;
   color: var(--ms-text-color);
-  font-size: 20px;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.2s;
   margin-left: 4px;
@@ -235,8 +235,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
   border-radius: 4px;
   background-color: transparent;
   border: none;
@@ -325,8 +326,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
   border-radius: 50%;
   background: transparent;
   border: none;
@@ -487,4 +489,31 @@ body {
 .notification .notification-close {
   margin-left: 16px;
   cursor: pointer;
+}
+
+/* Estilos de controles de ventana */
+.window-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  border: none;
+  background: transparent;
+  color: var(--ms-text-color);
+  border-radius: 4px;
+  margin-left: 2px;
+  cursor: pointer;
+  transition: background 0.2s;
+  -webkit-app-region: no-drag;
+}
+
+.window-control:hover {
+  background: var(--ms-btn-hover);
+}
+
+.window-control.close:hover {
+  background: rgba(242, 80, 34, 0.15);
+  color: var(--ms-red);
 }

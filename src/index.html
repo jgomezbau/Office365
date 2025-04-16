@@ -9,7 +9,7 @@
 </head>
 <body>
   <div id="app" class="app">
-    <div id="tab-bar">
+    <div id="tab-bar" style="-webkit-app-region: drag;">
       <!-- Logo de Microsoft Copilot - solo ícono -->
       <div class="ms-logo">
         <img src="../icons/icon.png" alt="Microsoft 365 Copilot" width="24" height="24">
@@ -22,8 +22,17 @@
       <button id="new-tab-btn" title="Nueva pestaña">
         <span class="material-symbols-rounded">add</span>
       </button>
-      <button id="settings-btn" title="Configuración">
+      <button id="settings-btn" style="-webkit-app-region: no-drag;" title="Configuración">
         <span class="material-symbols-rounded">settings</span>
+      </button>
+      <button id="window-min-btn" class="window-control" title="Minimizar">
+        <span class="material-symbols-rounded">minimize</span>
+      </button>
+      <button id="window-max-btn" class="window-control" title="Maximizar">
+        <span class="material-symbols-rounded">crop_square</span>
+      </button>
+      <button id="window-close-btn" class="window-control close" title="Cerrar">
+        <span class="material-symbols-rounded">close</span>
       </button>
     </div>
     

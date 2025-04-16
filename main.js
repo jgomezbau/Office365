@@ -48,8 +48,8 @@ function createMainWindow() {
       sandbox: true,
       spellcheck: true,
     },
-    titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default', // Solo en macOS
-    frame: process.platform !== 'win32', // Sin marco en Windows
+    titleBarStyle: 'hidden', // Opcional, para macOS
+    frame: false,            // <--- Esto es lo importante
     autoHideMenuBar: true,
     show: false,
     backgroundColor: '#FFFFFF',
@@ -454,6 +454,25 @@ ipcMain.on('close-tab', (event, tabId) => {
 
 ipcMain.on('reload-tab', (event, tabId) => {
   reloadTab(tabId);
+});
+
+ipcMain.on('window-control', (event, action) => {
+  if (!mainWindow) return;
+  switch (action) {
+    case 'minimize':
+      mainWindow.minimize();
+      break;
+    case 'maximize':
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      } else {
+        mainWindow.maximize();
+      }
+      break;
+    case 'close':
+      mainWindow.close();
+      break;
+  }
 });
 
 // Gestión de configuración
