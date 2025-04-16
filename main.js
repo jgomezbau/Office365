@@ -41,7 +41,7 @@ function createMainWindow() {
     minHeight: 650,
     icon: path.join(__dirname, 'icons', 'icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'), // Esto está bien si preload.js está junto a main.js
       contextIsolation: true,
       nodeIntegration: false,
       devTools: true,

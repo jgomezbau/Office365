@@ -17,6 +17,7 @@
     },
     "files": [
       "main.js",
+      "preload.js",
       "src/**/*",
       "icons/**/*",
       "config.xml"
