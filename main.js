@@ -558,81 +558,102 @@ function createTray() {
   });
 }
 
-// Iniciar la aplicación una vez que esté lista
-app.whenReady().then(() => {
-  // Configurar permisos para medios (cámara, micrófono)
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowedPermissions = ['media', 'notifications', 'clipboard-read', 'fullscreen'];
-    callback(allowedPermissions.includes(permission));
+// --- PREVENIR MÚLTIPLES INSTANCIAS ---
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Otra instancia está corriendo, salir inmediatamente
+  app.quit();
+} else {
+  // Si se intenta abrir una segunda instancia, enfocar la ventana existente
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (!mainWindow.isVisible()) mainWindow.show();
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+    // Asegurar que el tray esté activo (solo uno)
+    if (!tray) {
+      createTray();
+    }
   });
-  
-  // Interceptar clicks en links para decidir dónde abrirlos
-  session.defaultSession.webRequest.onBeforeRequest({
-    urls: ['*://*/*']
-  }, (details, callback) => {
-    // Solo procesar solicitudes iniciadas por usuario (clic en enlace)
-    if (details.resourceType === 'mainFrame' && details.method === 'GET') {
-      const url = details.url;
-      
-      // Verificar si el enlace debe abrirse internamente o externamente
-      if (!shouldOpenInternally(url)) {
-        // Cancelar la solicitud y abrir externamente
-        shell.openExternal(url);
-        callback({ cancel: true });
-        return;
+
+  // Iniciar la aplicación una vez que esté lista
+  app.whenReady().then(() => {
+    // Configurar permisos para medios (cámara, micrófono)
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      const allowedPermissions = ['media', 'notifications', 'clipboard-read', 'fullscreen'];
+      callback(allowedPermissions.includes(permission));
+    });
+    
+    // Interceptar clicks en links para decidir dónde abrirlos
+    session.defaultSession.webRequest.onBeforeRequest({
+      urls: ['*://*/*']
+    }, (details, callback) => {
+      // Solo procesar solicitudes iniciadas por usuario (clic en enlace)
+      if (details.resourceType === 'mainFrame' && details.method === 'GET') {
+        const url = details.url;
+        
+        // Verificar si el enlace debe abrirse internamente o externamente
+        if (!shouldOpenInternally(url)) {
+          // Cancelar la solicitud y abrir externamente
+          shell.openExternal(url);
+          callback({ cancel: true });
+          return;
+        }
       }
+      
+      // Permitir la solicitud normalmente
+      callback({ cancel: false });
+    });
+
+    createMainWindow();
+    if (!tray) createTray(); // Solo crear tray si no existe
+    
+    // Registrar protocolo deep-link personalizado (ms365://)
+    if (process.defaultApp) {
+      if (process.argv.length >= 2) {
+        app.setAsDefaultProtocolClient('ms365', process.execPath, [path.resolve(process.argv[1])]);
+      }
+    } else {
+      app.setAsDefaultProtocolClient('ms365');
     }
     
-    // Permitir la solicitud normalmente
-    callback({ cancel: false });
+    // Mostrar información de configuración en la consola (solo en desarrollo)
+    if (isDev) {
+      // console.log('Información de la aplicación:');
+      // console.log(`- Sistema: ${os.platform()} ${os.release()} (${os.arch()})`);
+      // console.log(`- Node.js: ${process.versions.node}`);
+      // console.log(`- Electron: ${process.versions.electron}`);
+      // console.log(`- Modo: ${isDev ? 'Desarrollo' : 'Producción'}`);
+      // console.log(`- Directorio de datos: ${app.getPath('userData')}`);
+    }
   });
 
-  createMainWindow();
-  createTray(); // Crear el icono del tray
-  
-  // Registrar protocolo deep-link personalizado (ms365://)
-  if (process.defaultApp) {
-    if (process.argv.length >= 2) {
-      app.setAsDefaultProtocolClient('ms365', process.execPath, [path.resolve(process.argv[1])]);
+  // Manejar el evento before-quit para asegurar la salida correcta
+  app.on('before-quit', () => {
+    app.isQuitting = true;
+  });
+
+  // Solo en macOS: volver a crear ventana al hacer clic en el dock
+  app.on('activate', () => {
+    // Si no hay ventanas abiertas y el dock es clickeado, mostrar la ventana principal
+    if (BrowserWindow.getAllWindows().length === 0) {
+       if (mainWindow) {
+         mainWindow.show();
+       } else {
+         createMainWindow();
+       }
+    } else if (mainWindow) {
+       mainWindow.show(); // Asegura que la ventana se muestre si estaba oculta
     }
-  } else {
-    app.setAsDefaultProtocolClient('ms365');
-  }
-  
-  // Mostrar información de configuración en la consola (solo en desarrollo)
-  if (isDev) {
-    // console.log('Información de la aplicación:');
-    // console.log(`- Sistema: ${os.platform()} ${os.release()} (${os.arch()})`);
-    // console.log(`- Node.js: ${process.versions.node}`);
-    // console.log(`- Electron: ${process.versions.electron}`);
-    // console.log(`- Modo: ${isDev ? 'Desarrollo' : 'Producción'}`);
-    // console.log(`- Directorio de datos: ${app.getPath('userData')}`);
-  }
-});
+  });
 
-// Manejar el evento before-quit para asegurar la salida correcta
-app.on('before-quit', () => {
-  app.isQuitting = true;
-});
-
-// Solo en macOS: volver a crear ventana al hacer clic en el dock
-app.on('activate', () => {
-  // Si no hay ventanas abiertas y el dock es clickeado, mostrar la ventana principal
-  if (BrowserWindow.getAllWindows().length === 0) {
-     if (mainWindow) {
-       mainWindow.show();
-     } else {
-       createMainWindow();
-     }
-  } else if (mainWindow) {
-     mainWindow.show(); // Asegura que la ventana se muestre si estaba oculta
-  }
-});
-
-// Cerrar la aplicación solo si no estamos en macOS o si se fuerza la salida
-app.on('window-all-closed', () => {
-  // En macOS, la aplicación generalmente permanece activa hasta que el usuario la cierra explícitamente
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+  // Cerrar la aplicación solo si no estamos en macOS o si se fuerza la salida
+  app.on('window-all-closed', () => {
+    // En macOS, la aplicación generalmente permanece activa hasta que el usuario la cierra explícitamente
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+}
