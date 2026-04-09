@@ -191,65 +191,94 @@ function createTabElement(tab, isActive) {
 
 // Obtener ruta del ícono basado en URL o título
 function getTabIconPath(url, title) {
-  const lowerUrl = url.toLowerCase();
+  const lowerUrl = (url || '').toLowerCase();
   const lowerTitle = (title || '').toLowerCase();
-  
+
+  // Función auxiliar para detectar tipo de archivo por extensión
+  function hasFileExtension(ext) {
+    return lowerTitle.includes(ext) || lowerUrl.includes(ext);
+  }
+
+  // Función auxiliar para detectar patrones de Office online
+  function hasOfficePattern(patterns) {
+    return patterns.some(pattern =>
+      lowerUrl.includes(pattern) || lowerTitle.includes(pattern)
+    );
+  }
+
+  // Priorizar detección por título y extensión del archivo
+  const isWordFile = hasFileExtension('.doc') || hasFileExtension('.docx') ||
+    hasOfficePattern(['word', 'document', 'word-edit', 'word-view', 'word-online', '/:w:/', 'app=word']) ||
+    (lowerUrl.includes('/_layouts/15/wopiframe.aspx') && lowerUrl.includes('doc'));
+
+  const isExcelFile = hasFileExtension('.xls') || hasFileExtension('.xlsx') || hasFileExtension('.xlsm') ||
+    hasOfficePattern(['excel', 'spreadsheet', 'workbook', 'excel-edit', 'excel-view', 'excel-online', '/:x:/', 'app=excel', 'xlviewer.aspx']) ||
+    (lowerUrl.includes('/_layouts/15/wopiframe.aspx') && lowerUrl.includes('xls'));
+
+  const isPowerPointFile = hasFileExtension('.ppt') || hasFileExtension('.pptx') ||
+    hasOfficePattern(['powerpoint', 'presentation', 'powerpoint-edit', 'powerpoint-view', 'powerpoint-online', '/:p:/', 'app=powerpoint']) ||
+    (lowerUrl.includes('/_layouts/15/wopiframe.aspx') && lowerUrl.includes('ppt'));
+
+  const isOneNoteFile = hasFileExtension('.one') ||
+    hasOfficePattern(['onenote', 'bloc de notas', 'onenote-online', '/:o:/', 'app=onenote']);
+
+  // Servicios específicos (solo si no son archivos de Office)
+  const isOutlookPage = hasOfficePattern(['outlook', '/mail', '/owa/', 'office365.com/mail', 'correo']) &&
+    !isWordFile && !isExcelFile && !isPowerPointFile && !isOneNoteFile;
+
+  const isOneDriveFolder = hasOfficePattern(['onedrive', 'onedrive.live.com', '/personal/', '/files/']) &&
+    !isWordFile && !isExcelFile && !isPowerPointFile && !isOneNoteFile;
+
   // Microsoft Word
-  if (lowerUrl.includes('word') || lowerTitle.includes('word') || 
-      lowerUrl.includes('.doc') || lowerUrl.includes('/document')) {
+  if (isWordFile) {
     return '../icons/word.png';
-  } 
+  }
   // Microsoft Excel
-  else if (lowerUrl.includes('excel') || lowerTitle.includes('excel') || 
-           lowerUrl.includes('.xls') || lowerUrl.includes('/spreadsheet')) {
+  else if (isExcelFile) {
     return '../icons/excel.png';
-  } 
+  }
   // Microsoft PowerPoint
-  else if (lowerUrl.includes('powerpoint') || lowerTitle.includes('powerpoint') || 
-           lowerUrl.includes('.ppt') || lowerUrl.includes('/presentation')) {
+  else if (isPowerPointFile) {
     return '../icons/powerpoint.png';
-  } 
-  // Microsoft Outlook
-  else if (lowerUrl.includes('outlook') || lowerTitle.includes('outlook') || 
-           lowerUrl.includes('/mail') || lowerTitle.includes('correo')) {
-    return '../icons/outlook.png';
-  } 
-  // Microsoft Teams
-  else if (lowerUrl.includes('teams') || lowerTitle.includes('teams') || 
-           lowerTitle.includes('equipo')) {
-    return '../icons/teams.png';
-  } 
-  // Microsoft OneDrive
-  else if (lowerUrl.includes('onedrive') || lowerTitle.includes('onedrive') || 
-           lowerUrl.includes('/files') || lowerUrl.includes('/personal')) {
-    return '../icons/onedrive.png';
-  } 
+  }
   // Microsoft OneNote
-  else if (lowerUrl.includes('onenote') || lowerTitle.includes('onenote') || 
-           lowerTitle.includes('bloc de notas')) {
+  else if (isOneNoteFile) {
     return '../icons/onenote.png';
-  } 
+  }
+  // Microsoft OneDrive
+  else if (isOneDriveFolder) {
+    return '../icons/onedrive.png';
+  }
+  // Microsoft Outlook
+  else if (isOutlookPage) {
+    return '../icons/outlook.png';
+  }
+  // Microsoft Teams
+  else if (lowerUrl.includes('teams') || lowerTitle.includes('teams') ||
+           lowerUrl.includes('equipo')) {
+    return '../icons/teams.png';
+  }
   // Microsoft SharePoint
-  else if (lowerUrl.includes('sharepoint') || lowerTitle.includes('sharepoint') || 
+  else if (lowerUrl.includes('sharepoint') || lowerTitle.includes('sharepoint') ||
            lowerUrl.includes('/sites/') || lowerTitle.includes('sitio')) {
-    return '../icons/sharepoint.png'; 
-  } 
+    return '../icons/sharepoint.png';
+  }
   // Microsoft To Do
-  else if (lowerUrl.includes('to-do') || lowerTitle.includes('to-do') || 
-          lowerUrl.includes('to-do.office')) {
-    return '../icons/todo.png'; 
-  } 
+  else if (lowerUrl.includes('to-do') || lowerTitle.includes('to-do') ||
+           lowerUrl.includes('to-do.office')) {
+    return '../icons/todo.png';
+  }
   // Centro de administración
-  else if (lowerUrl.includes('admin') || lowerTitle.includes('admin') || 
+  else if (lowerUrl.includes('admin') || lowerTitle.includes('admin') ||
            lowerTitle.includes('administra') || lowerUrl.includes('/adminportal/') ||
            lowerUrl.includes('/admincenter/')) {
-    return '../icons/admin.png'; 
-  } 
+    return '../icons/admin.png';
+  }
   // Microsoft Copilot
   else if (lowerUrl.includes('copilot') || lowerTitle.includes('copilot') ||
            lowerUrl.includes('m365.cloud')) {
     return '../icons/icon.png';
-  } 
+  }
   // Para otros casos, devolvemos null y se usará un ícono de Material Symbols
   else {
     return null;
@@ -370,23 +399,29 @@ async function initApp() {
   
   // Eventos para modal de configuración
   settingsBtn.addEventListener('click', () => {
+    window.electronAPI.toggleSettingsOverlay(true);
     settingsModal.classList.add('visible');
   });
   
   settingsCloseBtn.addEventListener('click', () => {
     settingsModal.classList.remove('visible');
+    window.electronAPI.toggleSettingsOverlay(false);
   });
   
   settingsCancelBtn.addEventListener('click', () => {
     loadSettings(); // Restaurar valores
     settingsModal.classList.remove('visible');
+    window.electronAPI.toggleSettingsOverlay(false);
   });
   
   settingsSaveBtn.addEventListener('click', async () => {
     const success = await saveSettings();
     if (success) {
       showNotification('Configuración guardada correctamente');
+      const mainUrl = mainUrlInput.value.trim();
+      window.electronAPI.openUrlInActiveTab(mainUrl);
       settingsModal.classList.remove('visible');
+      window.electronAPI.toggleSettingsOverlay(false);
     }
   });
   
@@ -394,6 +429,7 @@ async function initApp() {
   settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) {
       settingsModal.classList.remove('visible');
+      window.electronAPI.toggleSettingsOverlay(false);
     }
   });
   

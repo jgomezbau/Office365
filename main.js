@@ -89,6 +89,17 @@ function createMainWindow() {
     updateActiveTabBounds();
   });
 
+  // Asegurar que el BrowserView se redimensione también al maximizar/minimizar
+  mainWindow.on('maximize', () => {
+    // Pequeño delay para asegurar que la maximización termine
+    setTimeout(() => updateActiveTabBounds(), 50);
+  });
+
+  mainWindow.on('unmaximize', () => {
+    // Pequeño delay para asegurar que la restauración termine
+    setTimeout(() => updateActiveTabBounds(), 50);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -252,6 +263,11 @@ function createBrowserView() {
 
   view.webContents.setWindowOpenHandler(({ url }) => {
     console.log('[POPUP][BrowserView] Intentando abrir:', url);
+
+    if (!url || url === 'about:blank') {
+      return { action: 'deny' };
+    }
+
     // Permitir pop-ups de Microsoft 365 y SharePoint personalizados
     if (
       url.includes('office.com') ||
@@ -263,6 +279,12 @@ function createBrowserView() {
     }
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+  
+  view.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (isMainFrame && validatedURL === 'about:blank') {
+      event.preventDefault();
+    }
   });
   
   return view;
@@ -282,6 +304,22 @@ function updateActiveTabBounds() {
         height: bounds.height - tabBarHeight,
       });
     }
+  }
+}
+
+function setSettingsOverlayVisible(visible) {
+  if (!mainWindow || !tabManager.activeTabId) return;
+  const activeTab = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
+  if (!activeTab) return;
+
+  const currentViews = mainWindow.getBrowserViews();
+  const hasView = currentViews.includes(activeTab.view);
+
+  if (visible && hasView) {
+    mainWindow.removeBrowserView(activeTab.view);
+  } else if (!visible && !hasView) {
+    mainWindow.addBrowserView(activeTab.view);
+    updateActiveTabBounds();
   }
 }
 
@@ -378,6 +416,10 @@ function createTab(url, makeActive = false) {
   
   // Intercepta nuevos popups para que se abran como pestañas
   view.webContents.setWindowOpenHandler(({ url }) => {
+    if (!url || url === 'about:blank') {
+      return { action: 'deny' };
+    }
+
     if (shouldOpenInternally(url)) {
       // console.log('Abriendo internamente:', url);
       createTab(url, true);
@@ -507,6 +549,22 @@ ipcMain.on('window-control', (event, action) => {
   }
 });
 
+ipcMain.on('toggle-settings-overlay', (event, visible) => {
+  setSettingsOverlayVisible(Boolean(visible));
+});
+
+ipcMain.on('open-url-in-active-tab', (event, url) => {
+  if (!mainWindow || !url) return;
+  const activeTab = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
+  if (activeTab && activeTab.view) {
+    activeTab.url = url;
+    activeTab.view.webContents.loadURL(url);
+    sendTabsUpdate();
+  } else {
+    createTab(url, true);
+  }
+});
+
 // Gestión de configuración
 ipcMain.handle('get-main-url', () => {
   return configManager.getMainUrl();
@@ -514,6 +572,14 @@ ipcMain.handle('get-main-url', () => {
 
 ipcMain.handle('set-main-url', (event, url) => {
   configManager.setMainUrl(url);
+
+  const activeTab = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
+  if (activeTab && activeTab.view) {
+    activeTab.url = url;
+    activeTab.view.webContents.loadURL(url);
+    sendTabsUpdate();
+  }
+
   return true;
 });
 
@@ -523,6 +589,12 @@ ipcMain.handle('get-user-agent', () => {
 
 ipcMain.handle('set-user-agent', (event, userAgent) => {
   configManager.setUserAgent(userAgent);
+
+  const activeTab = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
+  if (activeTab && activeTab.view && userAgent) {
+    activeTab.view.webContents.setUserAgent(userAgent);
+  }
+
   return true;
 });
 

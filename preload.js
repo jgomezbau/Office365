@@ -51,4 +51,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Control de ventana
   windowControl: (action) => ipcRenderer.send('window-control', action),
+
+  // Modal de configuración
+  toggleSettingsOverlay: (visible) => ipcRenderer.send('toggle-settings-overlay', visible),
+
+  // Navegación de pestañas
+  openUrlInActiveTab: (url) => ipcRenderer.send('open-url-in-active-tab', url),
 });

@@ -1,13 +1,15 @@
 {
   "name": "Microsoft365Copilot",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "Aplicación de escritorio moderna para Microsoft 365 Copilot",
   "author": "Juan Bau <jgomezbau@gmail.com>",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
-    "linux": "electron-builder --linux AppImage"
+    "build:appimage": "electron-builder --linux AppImage",
+    "build:deb": "electron-builder --linux deb",
+    "build:linux": "electron-builder --linux AppImage deb tar.gz"
   },
   "build": {
     "appId": "Microsoft-365-Copilot",
@@ -25,17 +27,19 @@
     "linux": {
       "target": [
         "AppImage",
+        "deb",
         "tar.gz"
       ],
-      "icon": "icons/icon.png"
+      "icon": "icons/icon.png",
+      "category": "Office"
     }
   },
   "devDependencies": {
-    "electron": "^31.0.0",
-    "electron-builder": "^26.0.12"
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1"
   },
   "dependencies": {
-    "fast-xml-parser": "^4.3.0",
-    "electron-store": "^8.1.0"
+    "fast-xml-parser": "^5.5.11",
+    "electron-store": "^11.0.2"
   }
 }

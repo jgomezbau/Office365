@@ -1,4 +1,4 @@
-const Store = require('electron-store');
+const Store = require('electron-store').default;
 const { app } = require('electron');
 
 // Define el esquema para el almacenamiento
