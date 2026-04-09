@@ -16,9 +16,15 @@ const internalDomains = [
   'https://outlook.office.com',
   'https://outlook.office365.com',
   'https://teams.microsoft.com',
+  'https://teams.live.com',
+  'https://*.teams.live.com',
   'https://officeapps.live.com',
   'https://live.com',
   'https://onenote.com',
+  'https://www.onenote.com',
+  'https://*.onenote.com',
+  'https://onenote.officeapps.live.com',
+  'https://*.onenote.officeapps.live.com',
   'https://office-online.com',
   'https://officeweb365.com',
   'https://*.officeapps.live.com',
@@ -97,7 +103,9 @@ function shouldOpenInternally(url) {
                               urlObj.hostname.includes('onedrive') ||
                               urlObj.hostname.includes('office365') ||
                               urlObj.hostname.includes('m365') ||
-                              urlObj.hostname.includes('live.com');
+                              urlObj.hostname.includes('live.com') ||
+                              urlObj.hostname.includes('teams.live.com') ||
+                              urlObj.hostname.includes('onenote');
                               
     if (isOffice365Domain) {
       return true;

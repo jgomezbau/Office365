@@ -8,13 +8,74 @@ const tabsContainer = document.getElementById('tabs');
 const newTabBtn = document.getElementById('new-tab-btn');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal-overlay');
+const settingsBackdrop = document.getElementById('settings-backdrop');
+const appLauncherOverlay = document.getElementById('app-launcher-overlay');
+const appLauncherBackdrop = document.getElementById('app-launcher-backdrop');
+const appLauncherPanel = document.getElementById('app-launcher-panel');
+const appLauncherGrid = document.getElementById('app-launcher-grid');
 const settingsCloseBtn = document.getElementById('settings-close-btn');
 const settingsCancelBtn = document.getElementById('settings-cancel-btn');
 const settingsSaveBtn = document.getElementById('settings-save-btn');
+const mainUrlPresetSelect = document.getElementById('main-url-preset');
 const mainUrlInput = document.getElementById('main-url');
 const userAgentInput = document.getElementById('user-agent');
 const themeSelect = document.getElementById('theme-select');
 const notificationContainer = document.getElementById('notification-container');
+
+const MAIN_URL_PRESETS = {
+  corporate: 'https://www.microsoft365.com/?auth=2',
+  personal: 'https://www.microsoft365.com/?auth=1'
+};
+
+const OUTLOOK_URLS = {
+  corporate: 'https://outlook.office.com/mail/',
+  personal: 'https://outlook.live.com/mail/'
+};
+
+const APP_LAUNCHER_ITEMS = [
+  {
+    id: 'word',
+    label: 'Word',
+    icon: '../icons/word.png',
+    url: 'https://www.microsoft365.com/launch/word'
+  },
+  {
+    id: 'excel',
+    label: 'Excel',
+    icon: '../icons/excel.png',
+    url: 'https://www.microsoft365.com/launch/excel'
+  },
+  {
+    id: 'powerpoint',
+    label: 'PowerPoint',
+    icon: '../icons/powerpoint.png',
+    url: 'https://www.microsoft365.com/launch/powerpoint'
+  },
+  {
+    id: 'onedrive',
+    label: 'OneDrive',
+    icon: '../icons/onedrive.png',
+    url: 'https://www.microsoft365.com/launch/onedrive'
+  },
+  {
+    id: 'outlook',
+    label: 'Outlook',
+    icon: '../icons/outlook.png',
+    url: OUTLOOK_URLS.corporate
+  },
+  {
+    id: 'teams',
+    label: 'Teams',
+    icon: '../icons/teams.png',
+    url: 'https://teams.live.com/v2/?utm_source=OfficeWeb'
+  },
+  {
+    id: 'onenote',
+    label: 'OneNote',
+    icon: '../icons/onenote.png',
+    url: 'https://www.onenote.com/notebooks'
+  }
+];
 
 // Detectar tema del sistema y aplicarlo
 function applyTheme(theme) {
@@ -27,6 +88,45 @@ function applyTheme(theme) {
   }
 }
 
+function getMainUrlPresetValue(url) {
+  const normalizedUrl = (url || '').trim();
+
+  if (normalizedUrl === MAIN_URL_PRESETS.corporate) return 'corporate';
+  if (normalizedUrl === MAIN_URL_PRESETS.personal) return 'personal';
+  return 'custom';
+}
+
+function syncMainUrlPreset(url) {
+  mainUrlPresetSelect.value = getMainUrlPresetValue(url);
+}
+
+function getAccountModeFromMainUrl(url) {
+  const normalizedUrl = (url || '').trim().toLowerCase();
+
+  if (!normalizedUrl) return 'corporate';
+  if (normalizedUrl === MAIN_URL_PRESETS.personal) return 'personal';
+  if (normalizedUrl === MAIN_URL_PRESETS.corporate) return 'corporate';
+  if (normalizedUrl.includes('auth=1')) return 'personal';
+  if (normalizedUrl.includes('auth=2')) return 'corporate';
+  if (normalizedUrl.includes('outlook.live.com') || normalizedUrl.includes('office.live.com')) return 'personal';
+  if (normalizedUrl.includes('outlook.office.com')) return 'corporate';
+
+  return 'corporate';
+}
+
+function getLauncherUrl(item) {
+  if (item.id !== 'outlook') {
+    return item.url;
+  }
+
+  const presetMode = mainUrlPresetSelect.value;
+  const configuredMode = presetMode === 'custom'
+    ? getAccountModeFromMainUrl(mainUrlInput.value)
+    : presetMode;
+
+  return OUTLOOK_URLS[configuredMode] || OUTLOOK_URLS.corporate;
+}
+
 // Cargar y aplicar la configuración
 async function loadSettings() {
   // Obtener configuración
@@ -36,6 +136,7 @@ async function loadSettings() {
   
   // Actualizar campos
   mainUrlInput.value = mainUrl;
+  syncMainUrlPreset(mainUrl);
   userAgentInput.value = userAgent;
   themeSelect.value = theme;
   
@@ -111,6 +212,97 @@ function showNotification(message, type = 'success') {
       setTimeout(() => notification.remove(), 300);
     }
   }, 5000);
+}
+
+function renderAppLauncher() {
+  appLauncherGrid.innerHTML = '';
+
+  APP_LAUNCHER_ITEMS.forEach((item) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'app-launcher-item';
+    button.title = `Abrir ${item.label} en una pestaña nueva`;
+    button.innerHTML = `
+      <span class="app-launcher-icon-wrap">
+        <img src="${item.icon}" alt="" width="34" height="34">
+      </span>
+      <span class="app-launcher-label">${item.label}</span>
+    `;
+
+    button.addEventListener('click', () => {
+      closeAppLauncher();
+      window.electronAPI.createTab({
+        url: getLauncherUrl(item),
+        partition: item.partition,
+        appId: item.appId
+      });
+    });
+
+    appLauncherGrid.appendChild(button);
+  });
+}
+
+function positionAppLauncher() {
+  const buttonRect = newTabBtn.getBoundingClientRect();
+  const tabBarRect = document.getElementById('tab-bar').getBoundingClientRect();
+  const launcherWidth = Math.min(360, window.innerWidth - 32);
+  const preferredLeft = buttonRect.left - 24;
+  const maxLeft = Math.max(16, window.innerWidth - launcherWidth - 16);
+  const left = Math.min(Math.max(16, preferredLeft), maxLeft);
+  const top = Math.max(buttonRect.bottom - tabBarRect.bottom + 10, 10);
+
+  appLauncherPanel.style.left = `${left}px`;
+  appLauncherPanel.style.top = `${top}px`;
+}
+
+function closeAppLauncher() {
+  if (!appLauncherOverlay.classList.contains('visible')) return;
+
+  appLauncherOverlay.classList.remove('visible');
+  appLauncherBackdrop.style.backgroundImage = '';
+  window.electronAPI.toggleSettingsOverlay(false);
+}
+
+function closeSettingsModal() {
+  if (!settingsModal.classList.contains('visible')) return;
+
+  settingsModal.classList.remove('visible');
+  settingsBackdrop.style.backgroundImage = '';
+  window.electronAPI.toggleSettingsOverlay(false);
+}
+
+async function openSettingsModal() {
+  closeAppLauncher();
+  const previewDataUrl = await window.electronAPI.captureActiveTabPreview();
+  if (previewDataUrl) {
+    settingsBackdrop.style.backgroundImage = `url("${previewDataUrl}")`;
+  } else {
+    settingsBackdrop.style.backgroundImage = '';
+  }
+
+  settingsModal.classList.add('visible');
+  window.electronAPI.toggleSettingsOverlay(true);
+}
+
+async function openAppLauncher() {
+  settingsModal.classList.remove('visible');
+  const previewDataUrl = await window.electronAPI.captureActiveTabPreview();
+  if (previewDataUrl) {
+    appLauncherBackdrop.style.backgroundImage = `url("${previewDataUrl}")`;
+  } else {
+    appLauncherBackdrop.style.backgroundImage = '';
+  }
+  positionAppLauncher();
+  appLauncherOverlay.classList.add('visible');
+  window.electronAPI.toggleSettingsOverlay(true);
+}
+
+async function toggleAppLauncher() {
+  if (appLauncherOverlay.classList.contains('visible')) {
+    closeAppLauncher();
+  } else {
+    await openAppLauncher();
+  }
 }
 
 // Crear elemento para una pestaña
@@ -357,6 +549,7 @@ function handleMainProcessNotifications() {
 
 // Control de ventana (min, max, close)
 function setupWindowControls() {
+  const tabBar = document.getElementById('tab-bar');
   const minBtn = document.getElementById('window-min-btn');
   const maxBtn = document.getElementById('window-max-btn');
   const closeBtn = document.getElementById('window-close-btn');
@@ -366,11 +559,18 @@ function setupWindowControls() {
   });
 
   maxBtn.addEventListener('click', () => {
-    window.electronAPI && window.electronAPI.windowControl && window.electronAPI.windowControl('maximize');
+    window.electronAPI && window.electronAPI.toggleMaximize && window.electronAPI.toggleMaximize();
   });
 
   closeBtn.addEventListener('click', () => {
     window.electronAPI && window.electronAPI.windowControl && window.electronAPI.windowControl('close');
+  });
+
+  tabBar.addEventListener('dblclick', (event) => {
+    const interactiveSelector = 'button, .tab, .tab *';
+    if (event.target.closest(interactiveSelector)) return;
+
+    window.electronAPI && window.electronAPI.toggleMaximize && window.electronAPI.toggleMaximize();
   });
 }
 
@@ -381,6 +581,7 @@ async function initApp() {
   
   // Configurar notificaciones desde el proceso principal
   handleMainProcessNotifications();
+  renderAppLauncher();
   
   // Iniciar tema
   applyTheme(settings.theme);
@@ -398,20 +599,28 @@ async function initApp() {
   });
   
   // Eventos para modal de configuración
-  settingsBtn.addEventListener('click', () => {
-    window.electronAPI.toggleSettingsOverlay(true);
-    settingsModal.classList.add('visible');
+  settingsBtn.addEventListener('click', async () => {
+    await openSettingsModal();
+  });
+
+  mainUrlPresetSelect.addEventListener('change', () => {
+    const selectedPreset = mainUrlPresetSelect.value;
+    if (selectedPreset === 'custom') return;
+
+    mainUrlInput.value = MAIN_URL_PRESETS[selectedPreset];
+  });
+
+  mainUrlInput.addEventListener('input', () => {
+    syncMainUrlPreset(mainUrlInput.value);
   });
   
   settingsCloseBtn.addEventListener('click', () => {
-    settingsModal.classList.remove('visible');
-    window.electronAPI.toggleSettingsOverlay(false);
+    closeSettingsModal();
   });
   
   settingsCancelBtn.addEventListener('click', () => {
     loadSettings(); // Restaurar valores
-    settingsModal.classList.remove('visible');
-    window.electronAPI.toggleSettingsOverlay(false);
+    closeSettingsModal();
   });
   
   settingsSaveBtn.addEventListener('click', async () => {
@@ -420,23 +629,45 @@ async function initApp() {
       showNotification('Configuración guardada correctamente');
       const mainUrl = mainUrlInput.value.trim();
       window.electronAPI.openUrlInActiveTab(mainUrl);
-      settingsModal.classList.remove('visible');
-      window.electronAPI.toggleSettingsOverlay(false);
+      closeSettingsModal();
     }
   });
   
   // Cerrar modal al hacer clic fuera
   settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) {
-      settingsModal.classList.remove('visible');
-      window.electronAPI.toggleSettingsOverlay(false);
+      closeSettingsModal();
     }
   });
   
+  appLauncherOverlay.addEventListener('click', (event) => {
+    if (event.target === appLauncherOverlay) {
+      closeAppLauncher();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      if (appLauncherOverlay.classList.contains('visible')) {
+        closeAppLauncher();
+      }
+
+      if (settingsModal.classList.contains('visible')) {
+        closeSettingsModal();
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (appLauncherOverlay.classList.contains('visible')) {
+      positionAppLauncher();
+    }
+  });
+
   // Nueva pestaña
-  newTabBtn.addEventListener('click', async () => {
-    const mainUrl = await window.electronAPI.getMainUrl();
-    window.electronAPI.createTab(mainUrl);
+  newTabBtn.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    await toggleAppLauncher();
   });
 }
 

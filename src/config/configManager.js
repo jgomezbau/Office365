@@ -7,7 +7,7 @@ class ConfigManager {
     // Inicializar el almacenamiento persistente
     this.store = new Store({
       defaults: {
-        mainUrl: 'https://m365.cloud.microsoft/?auth=2',
+        mainUrl: 'https://www.microsoft365.com/?auth=1',
         useragent: '',
         theme: 'system',
         tabs: [],

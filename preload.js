@@ -51,9 +51,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Control de ventana
   windowControl: (action) => ipcRenderer.send('window-control', action),
+  toggleMaximize: () => ipcRenderer.invoke('toggle-maximize'),
 
   // Modal de configuración
   toggleSettingsOverlay: (visible) => ipcRenderer.send('toggle-settings-overlay', visible),
+  captureActiveTabPreview: () => ipcRenderer.invoke('capture-active-tab-preview'),
 
   // Navegación de pestañas
   openUrlInActiveTab: (url) => ipcRenderer.send('open-url-in-active-tab', url),
