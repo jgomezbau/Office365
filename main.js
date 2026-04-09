@@ -47,6 +47,7 @@ function createMainWindow() {
       devTools: true,
       sandbox: true,
       spellcheck: true,
+      nativeWindowOpen: true, // <-- Agrega esto
     },
     titleBarStyle: 'hidden', // Opcional, para macOS
     frame: false,            // <--- Esto es lo importante
@@ -106,6 +107,7 @@ function createMainWindow() {
   
   // Abrir links externos en el navegador predeterminado
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('[POPUP][MainWindow] Intentando abrir:', url); // <-- Agrega esto
     if (url.startsWith('https:') || url.startsWith('http:')) {
       shell.openExternal(url);
       return { action: 'deny' };
@@ -124,8 +126,8 @@ function createBrowserView() {
       contextIsolation: true,
       sandbox: true,
       devTools: true,
-      // Permitir media
       webSecurity: true,
+      nativeWindowOpen: true, // <-- Agrega esto
     },
   });
   
@@ -247,6 +249,21 @@ function createBrowserView() {
     const menu = Menu.buildFromTemplate(menuTemplateItems);
     menu.popup();
   });
+
+  view.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('[POPUP][BrowserView] Intentando abrir:', url);
+    // Permitir pop-ups de Microsoft 365 y SharePoint personalizados
+    if (
+      url.includes('office.com') ||
+      url.includes('sharepoint.com') ||
+      url.includes('microsoft365.com') ||
+      url.includes('jardindelpilar-my.sharepoint.com') // <-- Agregado aquí
+    ) {
+      return { action: 'allow' };
+    }
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
   
   return view;
 }
@@ -271,6 +288,11 @@ function updateActiveTabBounds() {
 // Crea una nueva pestaña (BrowserView) con la URL indicada
 function createTab(url, makeActive = false) {
   if (!mainWindow) return null;
+
+  // Evitar crear pestañas para about:blank
+  if (url === 'about:blank') {
+    return null;
+  }
 
   // console.log(`Creando nueva pestaña con URL: ${url}, makeActive: ${makeActive}`);
   
@@ -310,10 +332,12 @@ function createTab(url, makeActive = false) {
   
   // Intercepta eventos de navegación
   view.webContents.on('will-navigate', (event, navigationUrl) => {
+    if (navigationUrl === 'about:blank') {
+      event.preventDefault();
+      return;
+    }
     const currentURL = view.webContents.getURL();
-    
     try {
-      // Si navegamos desde una URL interna a una externa, cancelar y abrir en navegador
       if (shouldOpenInternally(currentURL) && !shouldOpenInternally(navigationUrl)) {
         event.preventDefault();
         shell.openExternal(navigationUrl);
@@ -321,6 +345,14 @@ function createTab(url, makeActive = false) {
       }
     } catch (error) {
       // console.error('Error en navegación:', error);
+    }
+  });
+
+  // Interceptar navegación a about:blank también en did-start-navigation
+  view.webContents.on('did-start-navigation', (event, navigationUrl, isInPlace, isMainFrame) => {
+    if (isMainFrame && navigationUrl === 'about:blank') {
+      event.preventDefault();
+      return;
     }
   });
   

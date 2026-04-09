@@ -23,7 +23,8 @@ const internalDomains = [
   'https://officeweb365.com',
   'https://*.officeapps.live.com',
   'https://*.sharepoint-df.com',
-  'https://*.sharepointonline.com'
+  'https://*.sharepointonline.com',
+  'https://1drv.ms'
 ];
 
 // Extensiones de archivo que deben abrirse internamente (archivos de Office y otros documentos)

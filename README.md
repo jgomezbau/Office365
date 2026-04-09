@@ -1,7 +1,7 @@
 # Microsoft 365® Copilot Desktop App
 # Seguimos trabajando en mejorarlo
 
-**Versión 1.0.0**
+**Versión 2.5.0**
 
 Esta es una aplicación de escritorio desarrollada utilizando **Electron**, que permite a los usuarios interactuar con **Microsoft 365® Copilot WEB®** de manera independiente del navegador. El objetivo de este proyecto es proporcionar una experiencia de usuario más fluida y accesible para aquellos que prefieren tener Office 365® en su escritorio sin poder utilizar la aplicacion oficial (No hay aplicacion para Linux... :( ).
 
