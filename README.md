@@ -1,4 +1,4 @@
-# 🚀 Microsoft 365® Copilot Desktop App
+# 🚀 O365 Linux Desktop
 
 > Una aplicación de escritorio moderna y potente para acceder a Microsoft 365® desde Linux, macOS y Windows.
 
@@ -23,9 +23,9 @@
 
 ## 📝 Descripción
 
-**Microsoft 365® Copilot Desktop App** es una aplicación de escritorio desarrollada con **Electron** que permite acceder a Microsoft 365® (Office 365®) directamente desde tu escritorio, sin depender de un navegador web. 
+**O365 Linux Desktop** es una aplicación de escritorio desarrollada con **Electron** que permite acceder a Microsoft 365® (Office 365®) directamente desde tu escritorio, sin depender de un navegador web.
 
-Es especialmente útil para usuarios de **Linux** que no tienen acceso a la aplicación oficial nativa de Microsoft Office. La aplicación proporciona una experiencia fluida e integrada con soporte para:
+Es especialmente útil para usuarios de **Linux** que no tienen acceso a una aplicación oficial nativa completa de Microsoft Office. La aplicación proporciona una experiencia fluida e integrada con soporte para:
 
 - ✅ Excel, Word, PowerPoint, OneNote, Outlook
 - ✅ SharePoint y OneDrive
@@ -40,7 +40,7 @@ Es especialmente útil para usuarios de **Linux** que no tienen acceso a la apli
 - **Interfaz de escritorio nativa**: Ejecuta Microsoft 365® Web directamente en tu escritorio sin navegador
 - **Pestañas independientes**: Manipula varios documentos simultáneamente con pestañas tipo navegador
 - **Detección automática de archivos**: Identifica automáticamente el tipo de archivo (Excel, Word, PowerPoint, etc.) y muestra el icono correspondiente
-- **Navegación inteligente**: URLs de Microsoft 365 se abren en nuevas pestañas dentro de la aplicación
+- **Navegación inteligente**: Las URLs de Microsoft 365 se abren en nuevas pestañas dentro de la aplicación
 - **Soporte multi-cuenta**: Cambia fácilmente entre cuentas personal y corporativa
 - **Configuración persistente**: Guarda tus preferencias (URL principal, tema, user agent)
 
@@ -59,14 +59,14 @@ Es especialmente útil para usuarios de **Linux** que no tienen acceso a la apli
 - **CPU**: Procesador de 2 GHz o superior
 - **RAM**: 2 GB mínimo (4 GB recomendado)
 - **Almacenamiento**: 200 MB de espacio libre
-- **Conexión**: Internet requerida (obviamente)
+- **Conexión**: Internet requerida
 
 ### Software
 - **Linux**: Ubuntu 18.04+, Debian 10+, Fedora, o cualquier distribución moderna
 - **macOS**: 10.13+
 - **Windows**: Windows 7+ (aunque se recomienda Windows 10+)
 
-**Nota**: Para desarrollo local necesitas **Node.js 18+** y **npm 8+**
+**Nota**: Para desarrollo local necesitas **Node.js 18+** y **npm 8+**.
 
 ## 📦 Instalación
 
@@ -75,17 +75,17 @@ Es especialmente útil para usuarios de **Linux** que no tienen acceso a la apli
 #### Linux
 ```bash
 # AppImage (funciona en cualquier distro)
-wget https://github.com/jgomezbau/Office365/releases/download/v2.6.0/Microsoft\ 365\ Copilot-2.6.0.AppImage
-chmod +x Microsoft\ 365\ Copilot-2.6.0.AppImage
-./Microsoft\ 365\ Copilot-2.6.0.AppImage
+wget https://github.com/jgomezbau/O365LinuxDesktop/releases/download/v2.6.0/O365-Linux-Desktop-2.6.0.AppImage
+chmod +x O365-Linux-Desktop-2.6.0.AppImage
+./O365-Linux-Desktop-2.6.0.AppImage
 
 # O Debian/.deb (para Debian, Ubuntu, etc.)
-sudo apt-get install ./Microsoft365Copilot-2.6.0.deb
+sudo apt-get install ./o365linuxdesktop_2.6.0_amd64.deb
 
 # O tar.gz (extrae manualmente)
-tar -xzf Microsoft365Copilot-2.6.0.tar.gz
-cd Microsoft365Copilot-2.6.0
-./microsoft-365-copilot
+tar -xzf O365-Linux-Desktop-2.6.0.tar.gz
+cd O365-Linux-Desktop-2.6.0
+./o365linuxdesktop
 ```
 
 #### Windows
@@ -104,8 +104,8 @@ cd Microsoft365Copilot-2.6.0
 
 #### 1. Clonar repositorio
 ```bash
-git clone https://github.com/jgomezbau/Office365.git
-cd Office365
+git clone https://github.com/jgomezbau/O365LinuxDesktop.git
+cd O365LinuxDesktop
 ```
 
 #### 2. Instalar dependencias
@@ -120,7 +120,7 @@ npm start
 
 #### 4. Compilar (opcional)
 ```bash
-# Compilar para todas las plataformas
+# Compilar para la plataforma actual
 npm run build
 
 # Compilar solo para Linux
@@ -139,16 +139,16 @@ Los paquetes compilados se guardarán en la carpeta `dist/`.
 
 ### Interfaz principal
 
-```
+```text
 ┌─────────────────────────────────────────┐
-│ MS365 [+] [⚙] [-] [□] [×]              │  ← Barra de herramientas
+│ O365 Linux Desktop [+] [⚙] [-] [□] [×] │  ← Barra de herramientas
 ├─────────────────────────────────────────┤
 │  Pestaña1.xlsx | Pestaña2.docx | Pestaña3
-│                                          │
-│                                          │
-│          Contenido de Microsoft 365      │
-│                                          │
-│                                          │
+│                                         │
+│                                         │
+│         Contenido de Microsoft 365      │
+│                                         │
+│                                         │
 └─────────────────────────────────────────┘
 ```
 
@@ -175,7 +175,7 @@ Los paquetes compilados se guardarán en la carpeta `dist/`.
 ### Menú contextual (Clic derecho)
 
 | Opción | Descripción |
-|--------|------------|
+|--------|-------------|
 | **Inspeccionar elemento** | Abre DevTools para inspeccionar y depurar |
 | **Recargar página** | Recarga la página actual |
 | **Abrir en nueva pestaña** | Abre el enlace en una nueva pestaña |
@@ -206,32 +206,29 @@ Puedes personalizar esta URL según tus necesidades.
 
 ### Archivo de configuración
 
-La configuración se almacena en:
-- **Linux**: `~/.config/Microsoft365Copilot/config.json`
-- **macOS**: `~/Library/Application Support/Microsoft365Copilot/config.json`
-- **Windows**: `%APPDATA%/Microsoft365Copilot/config.json`
+La configuración se almacena en una carpeta de datos de usuario generada por Electron según el nombre del producto. Si además actualizas `productName` y `name` en `package.json`, la ruta esperada quedará alineada con el nuevo nombre de la aplicación.
 
 ## 🧠 Desarrollo
 
 ### Estructura del proyecto
 
-```
-Office365/
+```text
+O365LinuxDesktop/
 ├── main.js                 # Punto de entrada Electron
-├── preload.js             # Script de preload seguro
-├── package.json           # Dependencias y scripts
+├── preload.js              # Script de preload seguro
+├── package.json            # Dependencias y scripts
 ├── src/
-│   ├── index.html         # Interfaz HTML
-│   ├── renderer.js        # Lógica del frontend (renderer)
-│   ├── styles.css         # Estilos CSS
+│   ├── index.html          # Interfaz HTML
+│   ├── renderer.js         # Lógica del frontend (renderer)
+│   ├── styles.css          # Estilos CSS
 │   ├── config/
 │   │   ├── configManager.js    # Gestión de configuración
 │   │   └── createWindow.js     # Creación de ventanas
 │   └── utils/
 │       ├── urlHandler.js       # Manejo de URLs
 │       └── nativeAppHandler.js # Gestión de aplicaciones nativas
-├── icons/                 # Iconos de la aplicación
-└── dist/                  # Paquetes compilados (después de build)
+├── icons/                  # Iconos de la aplicación
+└── dist/                   # Paquetes compilados (después de build)
 ```
 
 ### Stack tecnológico
@@ -263,9 +260,6 @@ npm run build             # Compila para la plataforma actual
 npm run build:linux       # Compila AppImage, .deb y tar.gz
 npm run build:appimage    # Solo AppImage
 npm run build:deb         # Solo .deb para Debian/Ubuntu
-
-# Verificación
-npm test                  # Ejecuta pruebas (si existen)
 ```
 
 ## 🐛 Solución de problemas
@@ -290,8 +284,8 @@ npm start -- --disable-gpu
 ```
 
 ### La ventana no se refresca al maximizar
-- Este problema está solucionado en versión 2.6.0
-- Si persiste, intenta: `npm install` en versión actual
+- Este problema está solucionado en la versión 2.6.0
+- Si persiste, intenta `npm install` con la versión actual
 
 ### No se detecta el tipo de archivo
 - Verifica que el título de la pestaña contenga la extensión del archivo
@@ -303,7 +297,7 @@ npm start -- --disable-gpu
 
 ## 🤝 Contribuir
 
-¡Las contribuciones son bienvenidas! Por favor seguir estos pasos:
+¡Las contribuciones son bienvenidas! Por favor sigue estos pasos:
 
 ### 1. Fork del repositorio
 ```bash
@@ -312,8 +306,8 @@ npm start -- --disable-gpu
 
 ### 2. Clona tu fork
 ```bash
-git clone https://github.com/TU_USUARIO/Office365.git
-cd Office365
+git clone https://github.com/TU_USUARIO/O365LinuxDesktop.git
+cd O365LinuxDesktop
 ```
 
 ### 3. Crea una rama para tu feature
@@ -358,20 +352,20 @@ git push origin feature/mi-nueva-funcionalidad
 
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo la **MIT License** - ver archivo [LICENSE](LICENSE) para más detalles.
+Este proyecto está licenciado bajo la **MIT License**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
 ## 📞 Contacto y soporte
 
 - **Autor**: Juan Bau (@jgomezbau)
 - **Email**: jgomezbau@gmail.com
-- **Issues/Bugs**: [GitHub Issues](https://github.com/jgomezbau/Office365/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/jgomezbau/Office365/discussions)
+- **Issues/Bugs**: [GitHub Issues](https://github.com/jgomezbau/O365LinuxDesktop/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/jgomezbau/O365LinuxDesktop/discussions)
 
 ## 🙏 Agradecimientos
 
 - [Electron](https://www.electronjs.org/) - El framework base
 - [electron-builder](https://www.electron.build/) - Para la compilación
-- [Microsoft 365](https://www.microsoft365.com/) - Servicio que wrapeamos
+- [Microsoft 365](https://www.microsoft365.com/) - Servicio integrado por la aplicación
 
 ---
 

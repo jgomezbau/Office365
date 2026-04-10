@@ -7,7 +7,7 @@ const { getAvailableAppsForFile, downloadAndOpenWithApp, detectFileType } = requ
 
 // Verificar si estamos en desarrollo
 const isDev = process.env.IS_DEV === 'true';
-const APP_SESSION_PARTITION = 'persist:office365';
+const APP_SESSION_PARTITION = 'persist:o365linuxdesktop';
 const FIREFOX_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0';
 let mainWindow;
 let tray = null; // Variable para mantener la referencia al Tray
@@ -1517,7 +1517,7 @@ function createTray() {
     }
   ]);
 
-  tray.setToolTip('Microsoft 365 Copilot');
+  tray.setToolTip('O365 Linux Desktop');
   tray.setContextMenu(contextMenu);
 
   // Opcional: Abrir la ventana al hacer clic en el icono del tray

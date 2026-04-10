@@ -1,5 +1,5 @@
 {
-  "name": "Microsoft365Copilot",
+  "name": "o365linuxdesktop",
   "version": "2.6.0",
   "description": "Aplicación de escritorio moderna para Microsoft 365 Copilot",
   "author": "Juan Bau <jgomezbau@gmail.com>",
@@ -12,8 +12,9 @@
     "build:linux": "electron-builder --linux AppImage deb tar.gz"
   },
   "build": {
-    "appId": "Microsoft-365-Copilot",
-    "productName": "Microsoft 365 Copilot",
+    "appId": "com.jgomezbau.o365linuxdesktop",
+    "productName": "O365 Linux Desktop",
+    "artifactName": "o365linuxdesktop-${version}.${ext}",
     "directories": {
       "output": "dist"
     },

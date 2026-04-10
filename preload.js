@@ -1,5 +1,5 @@
 /**
- * Preload script para Microsoft 365 Copilot
+ * Preload script para O365 Linux Desktop
  * Configura un puente seguro entre el proceso principal y el proceso de renderizado
  */
 
