@@ -10,6 +10,7 @@ package-lock.json
 # Ignorar archivos temporales
 *.tmp
 *.log
+.o365linuxdesktop-data/
 
 # Ignorar archivos generados por el sistema operativo
 .DS_Store

@@ -894,6 +894,7 @@ body.tab-drag-active {
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  padding-right: 2px;
 }
 
 .tab-info-card__title {
@@ -905,6 +906,7 @@ body.tab-drag-active {
   text-overflow: unset;
   word-break: break-word;
   overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .tab-info-card__service {
@@ -944,7 +946,7 @@ body.tab-drag-active {
   color: rgba(255, 255, 255, 0.84);
   line-height: 1.35;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;

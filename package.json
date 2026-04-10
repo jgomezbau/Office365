@@ -5,7 +5,9 @@
   "author": "Juan Bau <jgomezbau@gmail.com>",
   "main": "main.js",
   "scripts": {
-    "start": "electron . --ozone-platform=x11",
+    "start": "electron . --enable-features=UseOzonePlatform --ozone-platform=x11",
+    "start:x11": "electron . --enable-features=UseOzonePlatform --ozone-platform=x11",
+    "start:wayland": "electron . --enable-features=UseOzonePlatform --ozone-platform=wayland",
     "build": "electron-builder",
     "build:appimage": "electron-builder --linux AppImage",
     "build:deb": "electron-builder --linux deb",
@@ -21,17 +23,22 @@
     "files": [
       "main.js",
       "preload.js",
+      "modal-preload.js",
       "src/**/*",
       "icons/**/*",
       "config.xml"
     ],
     "linux": {
+      "executableArgs": [
+        "--enable-features=UseOzonePlatform",
+        "--ozone-platform=x11"
+      ],
       "target": [
         "AppImage",
         "deb",
         "tar.gz"
       ],
-      "icon": "icons/icon.png",
+      "icon": "build/icons",
       "category": "Office"
     }
   },

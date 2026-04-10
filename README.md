@@ -4,7 +4,7 @@ Aplicación de escritorio basada en Electron para trabajar con Microsoft 365 des
 
 ## Resumen
 
-O365 Linux Desktop abre Microsoft 365 dentro de una ventana nativa con una barra de pestañas personalizada. La aplicación está orientada principalmente a Linux y en la configuración actual de desarrollo arranca usando X11 (`--ozone-platform=x11`).
+O365 Linux Desktop abre Microsoft 365 dentro de una ventana nativa con una barra de pestañas personalizada. La aplicación está orientada principalmente a Linux y en la configuración actual de desarrollo usa X11 por defecto, con una opción explícita para probar Wayland.
 
 El proyecto incluye:
 - una pestaña principal fija para Microsoft 365
@@ -93,14 +93,17 @@ El proyecto incluye:
 
 ### Soportada en la configuración actual
 - Linux
-- Entornos X11 para la ejecución recomendada actual
+- Entornos X11 como ruta estable recomendada
+- Wayland como ruta de prueba explícita en desarrollo
 
 ### Notas importantes
-- El script `npm start` fuerza `--ozone-platform=x11`.
+- `npm start` y `npm run start:x11` fuerzan X11.
+- `npm run start:wayland` permite probar la aplicación en Wayland.
 - La configuración de empaquetado actual genera artefactos Linux:
   - `AppImage`
   - `deb`
   - `tar.gz`
+- Los artefactos Linux empaquetados fuerzan X11 para evitar incompatibilidades con las ventanas auxiliares flotantes.
 - Aunque parte del código es portable por Electron, este repositorio está preparado y documentado actualmente como objetivo Linux.
 
 ## Requisitos
@@ -126,13 +129,15 @@ npm start
 Esto ejecuta:
 
 ```bash
-electron . --ozone-platform=x11
+electron . --enable-features=UseOzonePlatform --ozone-platform=x11
 ```
 
 ### Scripts disponibles
 
 ```bash
 npm start
+npm run start:x11
+npm run start:wayland
 npm run build
 npm run build:linux
 npm run build:appimage

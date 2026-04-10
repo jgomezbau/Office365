@@ -1,11 +1,17 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const Store = require('electron-store').default;
 const { app } = require('electron');
 
 // Define el esquema para el almacenamiento
 class ConfigManager {
   constructor() {
+    const userDataPath = this.resolveUserDataPath();
+
     // Inicializar el almacenamiento persistente
     this.store = new Store({
+      projectName: 'o365linuxdesktop',
       defaults: {
         mainUrl: 'https://www.microsoft365.com/?auth=1',
         useragent: '',
@@ -20,9 +26,39 @@ class ConfigManager {
       },
       name: 'config',
       // Asegurar que la configuración es accesible solo por el usuario actual
-      cwd: app ? app.getPath('userData') : undefined,
+      cwd: userDataPath,
     });
 
+  }
+
+  resolveUserDataPath() {
+    const candidates = [];
+
+    if (app?.getPath) {
+      try {
+        const electronUserDataPath = app.getPath('userData');
+        if (electronUserDataPath) {
+          candidates.push(electronUserDataPath);
+        }
+      } catch (error) {
+        // Puede no estar disponible todavía durante el arranque temprano.
+      }
+    }
+
+    const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+    candidates.push(path.join(configHome, 'o365linuxdesktop-nodejs'));
+    candidates.push(path.join(process.cwd(), '.o365linuxdesktop-data'));
+
+    for (const candidate of candidates) {
+      try {
+        fs.mkdirSync(candidate, { recursive: true });
+        return candidate;
+      } catch (error) {
+        // Probar el siguiente candidato.
+      }
+    }
+
+    return path.join(process.cwd(), '.o365linuxdesktop-data');
   }
 
   // Obtener la URL principal

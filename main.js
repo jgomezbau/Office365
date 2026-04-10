@@ -25,7 +25,7 @@ const TAB_DRAG_GHOST_HEIGHT = 188;
 const TAB_DRAG_GHOST_OFFSET_X = 18;
 const TAB_DRAG_GHOST_OFFSET_Y = 16;
 const TAB_INFO_MODAL_WIDTH = 340;
-const TAB_INFO_MODAL_HEIGHT = 204;
+const TAB_INFO_MODAL_HEIGHT = 248;
 const TAB_INFO_MODAL_MARGIN = 12;
 
 function logPrimaryFlow(label, payload) {
