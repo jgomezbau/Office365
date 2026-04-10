@@ -1,0 +1,70 @@
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+body.modal-host-window {
+  background: transparent;
+}
+
+body.modal-host-window .settings-modal-overlay,
+body.modal-host-window .app-launcher-overlay {
+  top: 0;
+}
+
+body.modal-host-window .settings-modal-overlay,
+body.modal-host-window .app-launcher-overlay {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.modal-host-window .settings-modal-overlay.visible,
+body.modal-host-window .app-launcher-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body.modal-host-window .settings-backdrop,
+body.modal-host-window .app-launcher-backdrop {
+  background: rgba(12, 14, 18, 0.42);
+}
+
+body.modal-host-window .settings-backdrop::after,
+body.modal-host-window .app-launcher-backdrop::after {
+  background:
+    linear-gradient(180deg, rgba(9, 9, 9, 0.14), rgba(9, 9, 9, 0.3)),
+    radial-gradient(circle at top center, rgba(255, 255, 255, 0.05), transparent 42%);
+}
+
+body.modal-host-window .settings-modal {
+  max-height: calc(100vh - 40px);
+}
+
+body.modal-host-window .app-launcher-panel {
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+
+body.modal-host-window .tab-info-card {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 340px;
+  max-width: min(340px, calc(100vw - 24px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px);
+}
+
+body.modal-host-window .tab-info-card.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}

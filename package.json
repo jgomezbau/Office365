@@ -1,11 +1,11 @@
 {
   "name": "o365linuxdesktop",
-  "version": "2.6.0",
-  "description": "Aplicación de escritorio moderna para Microsoft 365 Copilot",
+  "version": "2.6.1",
+  "description": "Aplicación de escritorio moderna para Microsoft 365 en Linux",
   "author": "Juan Bau <jgomezbau@gmail.com>",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "electron . --ozone-platform=x11",
     "build": "electron-builder",
     "build:appimage": "electron-builder --linux AppImage",
     "build:deb": "electron-builder --linux deb",

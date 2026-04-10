@@ -1,7 +1,7 @@
-/* Microsoft Office 365 Copilot - Estilos modernos */
+/* O365 Linux Desktop - Estilos base compartidos */
 
 :root {
-  /* Tema claro (Office 365) */
+  /* Tema claro */
   --ms-font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
   --ms-bg-color: #ffffff;
   --ms-text-color: #252423;
@@ -15,19 +15,15 @@
   --ms-accent-hover: #106ebe;
   --ms-shadow-color: rgba(0, 0, 0, 0.08);
   --ms-header-height: 32px;
-  
-  /* Microsoft logo colors */
+  --ms-tab-width: 180px;
+  --ms-tab-gap: 2px;
+  --ms-tab-nav-width: 58px;
+
   --ms-red: #f25022;
-  --ms-green: #7fba00;
-  --ms-blue: #00a4ef;
-  --ms-yellow: #ffb900;
-  
-  /* Copilot colors */
-  --ms-copilot-green: #37B966;
-  --ms-copilot-light-green: rgba(55, 185, 102, 0.1);
+  --ms-copilot-green: #37b966;
 }
 
-/* Tema oscuro (Microsoft 365 dark) */
+/* Tema oscuro */
 [data-theme="dark"] {
   --ms-bg-color: #1f1f1f;
   --ms-text-color: #f3f2f1;
@@ -93,6 +89,7 @@ body {
   flex: 1;
   min-width: 0;
   margin-left: 2px;
+  overflow: hidden;
 }
 
 /* Contenedor para las pestañas */
@@ -100,8 +97,10 @@ body {
   display: flex;
   align-items: center;
   height: 100%;
-  gap: 2px;
+  gap: var(--ms-tab-gap);
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 #tabs.drop-at-end::after {
@@ -123,11 +122,11 @@ body {
   background-color: var(--ms-tab-bg);
   border-radius: 3px;
   margin-top: 2px;
-  margin-right: 2px;
+  margin-right: 0;
   padding: 0 8px 0 6px;
-  width: 180px;
-  min-width: 180px;
-  max-width: 180px;
+  width: var(--ms-tab-width);
+  min-width: var(--ms-tab-width);
+  max-width: var(--ms-tab-width);
   cursor: pointer;
   transition: all 0.2s ease;
   overflow: hidden;
@@ -282,6 +281,57 @@ body.tab-drag-active {
 .tab-close:hover {
   background-color: rgba(242, 80, 34, 0.1);
   color: var(--ms-red);
+}
+
+.tab-overflow-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: var(--ms-tab-nav-width);
+  min-width: var(--ms-tab-nav-width);
+  margin-left: 4px;
+  margin-right: 4px;
+  overflow: hidden;
+  transition: opacity 0.16s ease;
+  -webkit-app-region: no-drag;
+}
+
+.tab-overflow-nav.is-hidden {
+  width: 0;
+  min-width: 0;
+  margin-left: 0;
+  margin-right: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tab-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--ms-text-color);
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
+  -webkit-app-region: no-drag;
+}
+
+.tab-nav-btn:hover:not(:disabled) {
+  background-color: var(--ms-btn-hover);
+}
+
+.tab-nav-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.tab-nav-btn:disabled {
+  color: color-mix(in srgb, var(--ms-text-color) 35%, transparent);
+  cursor: default;
+  pointer-events: none;
 }
 
 /* Botón nueva pestaña */
@@ -681,7 +731,7 @@ body.tab-drag-active {
   background-color: var(--ms-accent-hover);
 }
 
-/* Scrollbar al estilo de Office 365 */
+/* Scrollbar base */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -707,16 +757,6 @@ body.tab-drag-active {
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: #5d5b59;
-}
-
-/* Animaciones suaves */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.fade-in {
-  animation: fadeIn 0.3s ease forwards;
 }
 
 /* Estilos de notificación */
@@ -786,4 +826,195 @@ body.tab-drag-active {
 .window-control.close:hover {
   background: rgba(242, 80, 34, 0.15);
   color: var(--ms-red);
+}
+
+
+.tab-info-card {
+  position: fixed;
+  top: calc(var(--ms-header-height) + 12px);
+  left: 16px;
+  width: 340px;
+  max-width: min(340px, calc(100vw - 24px));
+  padding: 14px 14px 18px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(0, 120, 212, 0.15), transparent 34%),
+    linear-gradient(180deg, rgba(36, 36, 36, 0.98), rgba(24, 24, 24, 0.98));
+  color: #f5f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+  z-index: 1400;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.tab-info-card.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.tab-info-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.tab-info-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.tab-info-card__icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.tab-info-card__icon .material-symbols-rounded {
+  font-size: 21px !important;
+}
+
+.tab-info-card__header-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.tab-info-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.tab-info-card__service {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.66);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-info-card__section {
+  margin-top: 14px;
+  padding-top: 12px;
+  padding-bottom: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tab-info-card__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tab-info-card__meta-icon {
+  font-size: 16px !important;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.tab-info-card__row-text {
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-info-card__meta-value {
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.84);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-info-card__meta-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  flex-shrink: 0;
+}
+
+.tab-info-card__actions {
+  margin-top: 16px;
+  padding-top: 14px;
+  padding-bottom: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tab-info-card__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  transition: color 0.16s ease, opacity 0.16s ease;
+}
+
+.tab-info-card__action:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+.tab-info-card__action:disabled {
+  color: rgba(255, 255, 255, 0.35);
+  cursor: default;
+  pointer-events: none;
+}
+
+.tab-info-card__action-icon {
+  font-size: 16px !important;
+}
+
+.tab-info-card__action.is-active .tab-info-card__action-icon {
+  color: #ffd34d;
+  font-variation-settings: 'FILL' 1;
+}
+
+.tab-info-card__action:not(.is-active) #tab-info-card-favorite-icon {
+  color: rgba(255, 255, 255, 0.66);
+  font-variation-settings: 'FILL' 0;
+}
+
+.tab-info-card__action-separator {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.1);
 }

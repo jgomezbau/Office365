@@ -1,20 +1,397 @@
-const { app, BrowserWindow, BrowserView, ipcMain, session, Menu, shell, dialog, clipboard, Tray, desktopCapturer } = require('electron'); // Añadir Tray
+const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, clipboard, Tray, desktopCapturer, screen, nativeImage } = require('electron');
 const path = require('path');
 const configManager = require('./src/config/configManager');
-const os = require('os');
 const { shouldOpenInternally } = require('./src/utils/urlHandler');
 const { getAvailableAppsForFile, downloadAndOpenWithApp, detectFileType } = require('./src/utils/nativeAppHandler');
 
 // Verificar si estamos en desarrollo
 const isDev = process.env.IS_DEV === 'true';
+const debugPrimaryFlow = process.env.DEBUG_PRIMARY_FLOW === 'true';
 const APP_SESSION_PARTITION = 'persist:o365linuxdesktop';
 const FIREFOX_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0';
 let mainWindow;
 let tray = null; // Variable para mantener la referencia al Tray
 const popupWindows = new Set();
+let tabDragGhostWindow = null;
+let tabDragGhostFollowInterval = null;
+let floatingModalWindow = null;
+let floatingModalState = null;
+let floatingModalLoaded = false;
+let activeMainContentView = null;
+let saveWindowStateTimeout = null;
+
+const TAB_DRAG_GHOST_WIDTH = 320;
+const TAB_DRAG_GHOST_HEIGHT = 188;
+const TAB_DRAG_GHOST_OFFSET_X = 18;
+const TAB_DRAG_GHOST_OFFSET_Y = 16;
+const TAB_INFO_MODAL_WIDTH = 340;
+const TAB_INFO_MODAL_HEIGHT = 204;
+const TAB_INFO_MODAL_MARGIN = 12;
 
 function logPrimaryFlow(label, payload) {
+  if (!debugPrimaryFlow) return;
   console.log(`[PRIMARY][${label}]`, payload);
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getTabDragGhostHtml(title = '') {
+  const safeTitle = escapeHtml(title || 'Ventana separada');
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; font-family: 'Segoe UI', sans-serif; }
+    body { display: flex; align-items: stretch; justify-content: stretch; padding: 0; }
+    .ghost-window { width: 100%; height: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,0.18); background: rgba(28,32,38,0.34); box-shadow: 0 18px 44px rgba(0,0,0,0.28); backdrop-filter: blur(2px); overflow: hidden; }
+    .ghost-titlebar { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; background: rgba(255,255,255,0.07); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .ghost-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.28); flex: 0 0 auto; }
+    .ghost-title { min-width: 0; color: rgba(255,255,255,0.88); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ghost-body { display: flex; flex-direction: column; gap: 12px; padding: 18px 16px; }
+    .ghost-line { height: 12px; border-radius: 999px; background: rgba(255,255,255,0.16); }
+    .ghost-line.short { width: 42%; }
+    .ghost-line.medium { width: 64%; }
+    .ghost-line.long { width: 88%; }
+    .ghost-panel { margin-top: 4px; height: 78px; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); }
+  </style>
+</head>
+<body>
+  <div class="ghost-window">
+    <div class="ghost-titlebar">
+      <div class="ghost-dot"></div>
+      <div class="ghost-title">${safeTitle}</div>
+    </div>
+    <div class="ghost-body">
+      <div class="ghost-line short"></div>
+      <div class="ghost-line long"></div>
+      <div class="ghost-line medium"></div>
+      <div class="ghost-panel"></div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function updateTabDragGhostPosition(screenX = 0, screenY = 0) {
+  if (!tabDragGhostWindow || tabDragGhostWindow.isDestroyed()) return;
+  tabDragGhostWindow.setBounds({
+    x: Math.round(screenX + TAB_DRAG_GHOST_OFFSET_X),
+    y: Math.round(screenY + TAB_DRAG_GHOST_OFFSET_Y),
+    width: TAB_DRAG_GHOST_WIDTH,
+    height: TAB_DRAG_GHOST_HEIGHT
+  }, false);
+}
+
+function ensureTabDragGhostWindow(title = '') {
+  if (!tabDragGhostWindow || tabDragGhostWindow.isDestroyed()) {
+    tabDragGhostWindow = new BrowserWindow({
+      width: TAB_DRAG_GHOST_WIDTH,
+      height: TAB_DRAG_GHOST_HEIGHT,
+      show: false,
+      frame: false,
+      transparent: true,
+      backgroundColor: '#00000000',
+      resizable: false,
+      movable: false,
+      minimizable: false,
+      maximizable: false,
+      closable: false,
+      focusable: false,
+      skipTaskbar: true,
+      alwaysOnTop: true,
+      hasShadow: true,
+      fullscreenable: false,
+      parent: mainWindow || undefined,
+      webPreferences: {
+        sandbox: true,
+        backgroundThrottling: false,
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    });
+
+    tabDragGhostWindow.setMenuBarVisibility(false);
+    tabDragGhostWindow.setIgnoreMouseEvents(true, { forward: true });
+    tabDragGhostWindow.on('closed', () => {
+      tabDragGhostWindow = null;
+    });
+  }
+
+  if (tabDragGhostWindow.__ghostTitle !== title) {
+    tabDragGhostWindow.__ghostTitle = title;
+    tabDragGhostWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getTabDragGhostHtml(title))}`);
+  }
+
+  return tabDragGhostWindow;
+}
+
+function showTabDragGhost(payload = {}) {
+  const title = typeof payload.title === 'string' ? payload.title : '';
+  const fallbackPoint = screen.getCursorScreenPoint();
+  const screenX = Number(payload.screenX) || fallbackPoint.x;
+  const screenY = Number(payload.screenY) || fallbackPoint.y;
+  const ghostWindow = ensureTabDragGhostWindow(title);
+  if (!ghostWindow) return;
+
+  ghostWindow.showInactive();
+  updateTabDragGhostPosition(screenX, screenY);
+  startTabDragGhostFollow();
+}
+
+function moveTabDragGhost(payload = {}) {
+  const fallbackPoint = screen.getCursorScreenPoint();
+  updateTabDragGhostPosition(
+    Number(payload.screenX) || fallbackPoint.x,
+    Number(payload.screenY) || fallbackPoint.y
+  );
+}
+
+function stopTabDragGhostFollow() {
+  if (!tabDragGhostFollowInterval) return;
+  clearInterval(tabDragGhostFollowInterval);
+  tabDragGhostFollowInterval = null;
+}
+
+function startTabDragGhostFollow() {
+  stopTabDragGhostFollow();
+  tabDragGhostFollowInterval = setInterval(() => {
+    if (!tabDragGhostWindow || tabDragGhostWindow.isDestroyed() || !tabDragGhostWindow.isVisible()) {
+      stopTabDragGhostFollow();
+      return;
+    }
+
+    const point = screen.getCursorScreenPoint();
+    updateTabDragGhostPosition(point.x, point.y);
+  }, 16);
+}
+
+function hideTabDragGhost() {
+  stopTabDragGhostFollow();
+  if (!tabDragGhostWindow || tabDragGhostWindow.isDestroyed()) return;
+  tabDragGhostWindow.hide();
+}
+
+
+function areBoundsVisible(bounds) {
+  if (!bounds) return false;
+
+  const displays = screen.getAllDisplays();
+  return displays.some(({ workArea }) => {
+    const overlapWidth = Math.min(bounds.x + bounds.width, workArea.x + workArea.width) - Math.max(bounds.x, workArea.x);
+    const overlapHeight = Math.min(bounds.y + bounds.height, workArea.y + workArea.height) - Math.max(bounds.y, workArea.y);
+    return overlapWidth >= 120 && overlapHeight >= 120;
+  });
+}
+
+function getValidatedWindowBounds() {
+  const savedBounds = configManager.getWindowBounds();
+  if (
+    savedBounds &&
+    Number.isFinite(savedBounds.x) &&
+    Number.isFinite(savedBounds.y) &&
+    Number.isFinite(savedBounds.width) &&
+    Number.isFinite(savedBounds.height) &&
+    savedBounds.width >= 900 &&
+    savedBounds.height >= 650 &&
+    areBoundsVisible(savedBounds)
+  ) {
+    return savedBounds;
+  }
+
+  const primaryWorkArea = screen.getPrimaryDisplay().workArea;
+  const width = Math.min(1200, primaryWorkArea.width);
+  const height = Math.min(800, primaryWorkArea.height);
+  const x = primaryWorkArea.x + Math.max(0, Math.round((primaryWorkArea.width - width) / 2));
+  const y = primaryWorkArea.y + Math.max(0, Math.round((primaryWorkArea.height - height) / 2));
+
+  return { x, y, width, height };
+}
+
+function persistMainWindowState(immediate = false) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const saveState = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
+    configManager.setWindowMaximized(mainWindow.isMaximized());
+
+    const bounds = mainWindow.isMaximized()
+      ? mainWindow.getNormalBounds()
+      : mainWindow.getBounds();
+
+    configManager.setWindowBounds(bounds);
+    saveWindowStateTimeout = null;
+  };
+
+  if (saveWindowStateTimeout) {
+    clearTimeout(saveWindowStateTimeout);
+    saveWindowStateTimeout = null;
+  }
+
+  if (immediate) {
+    saveState();
+    return;
+  }
+
+  saveWindowStateTimeout = setTimeout(saveState, 180);
+}
+
+function getFloatingModalWindowBounds(type = floatingModalState?.type, payload = floatingModalState?.payload || {}) {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+
+  const mainBounds = mainWindow.getBounds();
+
+  if (type === 'tab-info') {
+    const anchorRect = payload.anchorRect || {};
+    const width = TAB_INFO_MODAL_WIDTH;
+    const height = TAB_INFO_MODAL_HEIGHT;
+    const left = Number(anchorRect.left) || TAB_INFO_MODAL_MARGIN;
+    const bottom = Number(anchorRect.bottom) || 0;
+    const anchorWidth = Number(anchorRect.width) || 0;
+
+    const maxLeft = Math.max(TAB_INFO_MODAL_MARGIN, mainBounds.width - width - TAB_INFO_MODAL_MARGIN);
+    const x = mainBounds.x + Math.round(Math.min(Math.max(left + (anchorWidth / 2) - (width / 2), TAB_INFO_MODAL_MARGIN), maxLeft));
+    const maxTop = Math.max(TAB_INFO_MODAL_MARGIN, mainBounds.height - height - TAB_INFO_MODAL_MARGIN);
+    const y = mainBounds.y + Math.round(Math.min(Math.max(bottom + 10, TAB_INFO_MODAL_MARGIN), maxTop));
+
+    return { x, y, width, height };
+  }
+
+  return mainBounds;
+}
+
+function syncFloatingModalWindowBounds() {
+  if (!floatingModalWindow || floatingModalWindow.isDestroyed()) return;
+  const bounds = getFloatingModalWindowBounds();
+  if (!bounds) return;
+  floatingModalWindow.setBounds(bounds, false);
+}
+
+function buildFloatingModalState(type, payload = {}) {
+  return {
+    type,
+    payload,
+    windowBounds: getFloatingModalWindowBounds(type, payload)
+  };
+}
+
+function sendFloatingModalState() {
+  if (!floatingModalWindow || floatingModalWindow.isDestroyed() || !floatingModalLoaded || !floatingModalState) return;
+  floatingModalWindow.webContents.send('floating-modal-state', floatingModalState);
+}
+
+function ensureFloatingModalWindow() {
+  if (floatingModalWindow && !floatingModalWindow.isDestroyed()) {
+    syncFloatingModalWindowBounds();
+    return floatingModalWindow;
+  }
+
+  const bounds = getFloatingModalWindowBounds();
+  if (!bounds) return null;
+
+  floatingModalLoaded = false;
+  floatingModalWindow = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    movable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    parent: mainWindow,
+    modal: false,
+    focusable: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'modal-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      backgroundThrottling: false
+    }
+  });
+
+  floatingModalWindow.setMenuBarVisibility(false);
+  floatingModalWindow.loadFile(path.join(__dirname, 'src', 'modal.html'));
+
+  floatingModalWindow.once('ready-to-show', () => {
+    syncFloatingModalWindowBounds();
+    sendFloatingModalState();
+    floatingModalWindow.show();
+    floatingModalWindow.focus();
+  });
+
+  floatingModalWindow.webContents.on('did-finish-load', () => {
+    floatingModalLoaded = true;
+    sendFloatingModalState();
+  });
+
+  floatingModalWindow.on('closed', () => {
+    floatingModalWindow = null;
+    floatingModalLoaded = false;
+    floatingModalState = null;
+  });
+
+  return floatingModalWindow;
+}
+
+function openFloatingModal(type, payload = {}) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  floatingModalState = buildFloatingModalState(type, payload);
+  const modalWindow = ensureFloatingModalWindow();
+  if (!modalWindow) return;
+
+  syncFloatingModalWindowBounds();
+
+  if (floatingModalLoaded) {
+    sendFloatingModalState();
+    modalWindow.show();
+    modalWindow.focus();
+  }
+}
+
+function closeFloatingModal() {
+  floatingModalState = null;
+  if (!floatingModalWindow || floatingModalWindow.isDestroyed()) return;
+  floatingModalWindow.hide();
+}
+
+function toggleFloatingModal(config = {}) {
+  const type = config && typeof config.type === 'string' ? config.type : null;
+  const payload = config && typeof config.payload === 'object' ? config.payload : {};
+  if (!type) return;
+
+  const isSameTypeVisible =
+    floatingModalWindow &&
+    !floatingModalWindow.isDestroyed() &&
+    floatingModalWindow.isVisible() &&
+    floatingModalState &&
+    floatingModalState.type === type;
+
+  if (isSameTypeVisible) {
+    closeFloatingModal();
+    return;
+  }
+
+  openFloatingModal(type, payload);
 }
 
 function getAccountModeFromMainUrl(url) {
@@ -191,6 +568,307 @@ function openTrayAppWindow(appKey) {
   }
 
   return openManagedPopupWindow(targetUrl, APP_SESSION_PARTITION);
+}
+
+const FAVORITE_TYPE_ORDER = ['word', 'excel', 'powerpoint', 'pdf', 'outlook', 'onedrive', 'teams', 'sharepoint', 'onenote', 'other'];
+
+function inferFavoriteType(favorite = {}) {
+  const url = String(favorite.url || '').toLowerCase();
+  const title = String(favorite.title || '').toLowerCase();
+  const appId = String(favorite.appId || '').toLowerCase();
+
+  const hasAny = (values) => values.some((value) => url.includes(value) || title.includes(value) || appId.includes(value));
+
+  if (hasAny(['.doc', '.docx', 'word', 'app=word', 'ithint=file%2cdoc', 'ithint=file,doc'])) return 'word';
+  if (hasAny(['.xls', '.xlsx', '.xlsm', '.csv', 'excel', 'app=excel', 'ithint=file%2cxls', 'ithint=file,xls'])) return 'excel';
+  if (hasAny(['.ppt', '.pptx', 'powerpoint', 'app=powerpoint', 'ithint=file%2cppt', 'ithint=file,ppt'])) return 'powerpoint';
+  if (hasAny(['.pdf', 'pdf'])) return 'pdf';
+  if (hasAny(['outlook', '/mail', 'owa'])) return 'outlook';
+  if (hasAny(['onedrive', 'onedrive.live.com'])) return 'onedrive';
+  if (hasAny(['teams'])) return 'teams';
+  if (hasAny(['sharepoint', '/sites/'])) return 'sharepoint';
+  if (hasAny(['onenote'])) return 'onenote';
+  return 'other';
+}
+
+function getFavoriteTypeIconPath(type = 'other') {
+  const iconsDir = path.join(__dirname, 'icons');
+  const iconNameByType = {
+    word: 'word.png',
+    excel: 'excel.png',
+    powerpoint: 'powerpoint.png',
+    pdf: 'icon.png',
+    outlook: 'outlook.png',
+    onedrive: 'onedrive.png',
+    teams: 'teams.png',
+    sharepoint: 'sharepoint.png',
+    onenote: 'onenote.png',
+    other: 'icon.png'
+  };
+
+  return path.join(iconsDir, iconNameByType[type] || iconNameByType.other);
+}
+
+function getFavoriteMenuIcon(type = 'other') {
+  const image = nativeImage.createFromPath(getFavoriteTypeIconPath(type));
+  return image.isEmpty() ? undefined : image.resize({ width: 16, height: 16 });
+}
+
+function normalizeFavoriteEntry(favorite = {}) {
+  const url = sanitizeRestorableUrl(favorite.url || '');
+  if (!url || url === 'about:blank') return null;
+
+  const title = sanitizeFavoriteTitle(favorite.title || '', url);
+  const type = favorite.type || inferFavoriteType({ ...favorite, url, title });
+
+  return {
+    key: favorite.key || getFavoriteKeyFromUrl(url),
+    url,
+    title,
+    partition: favorite.partition || APP_SESSION_PARTITION,
+    appId: favorite.appId || null,
+    type
+  };
+}
+
+function getFavoriteServiceLabel(rawUrl = '') {
+  const value = String(rawUrl || '').toLowerCase();
+  if (value.includes('onedrive')) return 'OneDrive';
+  if (value.includes('sharepoint')) return 'SharePoint';
+  if (value.includes('outlook')) return 'Outlook';
+  if (value.includes('teams')) return 'Teams';
+  if (value.includes('onenote')) return 'OneNote';
+  if (value.includes('excel')) return 'Excel';
+  if (value.includes('powerpoint')) return 'PowerPoint';
+  if (value.includes('word')) return 'Word';
+  return 'Favorito';
+}
+
+function sanitizeFavoriteTitle(rawTitle = '', rawUrl = '') {
+  const cleanedTitle = String(rawTitle || '')
+    .trim()
+    .replace(/\s*[|·-]\s*(microsoft\s*365|onedrive|sharepoint|outlook|teams|word|excel|powerpoint|onenote|office)\s*$/i, '')
+    .replace(/^continue$/i, '')
+    .replace(/^working\.\.\.$/i, '')
+    .trim();
+
+  if (cleanedTitle && !/^https?:\/\//i.test(cleanedTitle) && !/^file:\/\//i.test(cleanedTitle)) {
+    return cleanedTitle;
+  }
+
+  try {
+    const parsedUrl = new URL(rawUrl);
+    if (parsedUrl.protocol === 'file:') {
+      const localPath = decodeURIComponent(parsedUrl.pathname || '');
+      const localName = path.basename(localPath);
+      if (localName) return localName;
+    }
+
+    const pathname = decodeURIComponent(parsedUrl.pathname || '');
+    const lastSegment = pathname.split('/').filter(Boolean).pop() || '';
+    if (lastSegment && !/^(doc|doc2|wopiframe|guestaccess)\.aspx$/i.test(lastSegment)) {
+      return lastSegment;
+    }
+  } catch (error) {
+    // Ignorar errores de normalización y usar fallback amigable.
+  }
+
+  return getFavoriteServiceLabel(rawUrl);
+}
+
+function getFavoriteUrlFromTab(tab) {
+  if (!tab) return '';
+  return sanitizeRestorableUrl(tab.restorableUrl || tab.url || '');
+}
+
+function getFavoriteKeyFromUrl(rawUrl = '') {
+  return sanitizeRestorableUrl(rawUrl || '');
+}
+
+function getStoredFavorites() {
+  const rawFavorites = configManager.getFavorites().filter((favorite) => favorite && favorite.url);
+  const normalizedFavorites = rawFavorites
+    .map((favorite) => normalizeFavoriteEntry(favorite))
+    .filter(Boolean);
+
+  const serializedRaw = JSON.stringify(rawFavorites);
+  const serializedNormalized = JSON.stringify(normalizedFavorites);
+  if (serializedRaw !== serializedNormalized) {
+    configManager.setFavorites(normalizedFavorites);
+  }
+
+  return normalizedFavorites;
+}
+
+function setStoredFavorites(favorites) {
+  const normalizedFavorites = (Array.isArray(favorites) ? favorites : [])
+    .map((favorite) => normalizeFavoriteEntry(favorite))
+    .filter(Boolean);
+
+  configManager.setFavorites(normalizedFavorites);
+  rebuildTrayMenu();
+}
+
+function getFavoriteEntryFromTab(tab) {
+  const url = getFavoriteUrlFromTab(tab);
+  if (!url || url === 'about:blank') return null;
+
+  return normalizeFavoriteEntry({
+    key: getFavoriteKeyFromUrl(url),
+    url,
+    title: sanitizeFavoriteTitle(tab.fullTitle || tab.title || '', url),
+    partition: tab.partition || APP_SESSION_PARTITION,
+    appId: tab.appId || null,
+    type: inferFavoriteType({
+      url,
+      title: tab.fullTitle || tab.title || '',
+      appId: tab.appId || null
+    })
+  });
+}
+
+function isFavoriteTab(tab) {
+  const favoriteKey = getFavoriteKeyFromUrl(getFavoriteUrlFromTab(tab));
+  if (!favoriteKey) return false;
+
+  return getStoredFavorites().some((favorite) => (favorite.key || getFavoriteKeyFromUrl(favorite.url)) === favoriteKey);
+}
+
+function updateFavoriteEntryForTab(tab, candidateUrls = []) {
+  const nextEntry = getFavoriteEntryFromTab(tab);
+  if (!nextEntry) return false;
+
+  const candidateKeys = new Set(
+    [...candidateUrls, tab.url, tab.restorableUrl, nextEntry.url]
+      .filter(Boolean)
+      .map((value) => getFavoriteKeyFromUrl(value))
+      .filter(Boolean)
+  );
+
+  if (!candidateKeys.size) return false;
+
+  const favorites = getStoredFavorites();
+  const index = favorites.findIndex((favorite) => candidateKeys.has(favorite.key || getFavoriteKeyFromUrl(favorite.url)));
+  if (index === -1) return false;
+
+  favorites[index] = { ...favorites[index], ...nextEntry };
+  setStoredFavorites(favorites);
+  return true;
+}
+
+function toggleFavoriteForTab(tabId) {
+  const tab = tabManager.tabs.find((existingTab) => existingTab.id === Number(tabId));
+  if (!tab || tab.isPrimary) {
+    return { tabId: Number(tabId) || null, isFavorite: false };
+  }
+
+  const nextEntry = getFavoriteEntryFromTab(tab);
+  if (!nextEntry) {
+    return { tabId: tab.id, isFavorite: false };
+  }
+
+  const favorites = getStoredFavorites();
+  const index = favorites.findIndex((favorite) => (favorite.key || getFavoriteKeyFromUrl(favorite.url)) === nextEntry.key);
+  let isFavorite = false;
+
+  if (index >= 0) {
+    favorites.splice(index, 1);
+  } else {
+    favorites.push(nextEntry);
+    isFavorite = true;
+  }
+
+  setStoredFavorites(favorites);
+  return { tabId: tab.id, isFavorite };
+}
+
+function openFavoriteFromTray(favorite) {
+  if (!favorite || !favorite.url) return null;
+  return openManagedPopupWindow(favorite.url, favorite.partition || APP_SESSION_PARTITION);
+}
+
+function buildFavoritesTraySubmenu() {
+  const favorites = getStoredFavorites();
+  if (!favorites.length) {
+    return [{ label: 'Sin favoritos', enabled: false }];
+  }
+
+  const groups = FAVORITE_TYPE_ORDER
+    .map((type) => ({
+      type,
+      favorites: favorites
+        .filter((favorite) => (favorite.type || 'other') === type)
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }))
+    }))
+    .filter((group) => group.favorites.length > 0);
+
+  const submenu = [];
+
+  groups.forEach((group, groupIndex) => {
+    if (groupIndex > 0) {
+      submenu.push({ type: 'separator' });
+    }
+
+    group.favorites.forEach((favorite) => {
+      submenu.push({
+        label: favorite.title || getFavoriteServiceLabel(favorite.url),
+        icon: getFavoriteMenuIcon(favorite.type || 'other'),
+        click: () => openFavoriteFromTray(favorite)
+      });
+    });
+  });
+
+  return submenu;
+}
+
+function buildTrayMenuTemplate() {
+  return [
+    {
+      label: 'Mostrar/Ocultar',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+        }
+      }
+    },
+    {
+      label: 'Recargar App',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.reload();
+        }
+      }
+    },
+    {
+      label: 'Favoritos',
+      submenu: buildFavoritesTraySubmenu()
+    },
+    {
+      label: 'Aplicaciones',
+      submenu: [
+        { label: 'Word', click: () => openTrayAppWindow('word') },
+        { label: 'Excel', click: () => openTrayAppWindow('excel') },
+        { label: 'PowerPoint', click: () => openTrayAppWindow('powerpoint') },
+        { label: 'Outlook', click: () => openTrayAppWindow('outlook') },
+        { label: 'OneDrive', click: () => openTrayAppWindow('onedrive') },
+        { label: 'Teams', click: () => openTrayAppWindow('teams') },
+        { label: 'OneNote', click: () => openTrayAppWindow('onenote') }
+      ]
+    },
+    { type: 'separator' },
+    {
+      label: 'Salir',
+      click: () => {
+        app.isQuitting = true;
+        app.quit();
+      }
+    }
+  ];
+}
+
+function rebuildTrayMenu() {
+  if (!tray) return;
+  tray.setContextMenu(Menu.buildFromTemplate(buildTrayMenuTemplate()));
 }
 
 function isOfficeAppLaunchUrl(rawUrl) {
@@ -547,7 +1225,6 @@ let tabManager = {
     this.tabs = [];
     this.activeTabId = null;
     this.nextTabId = 1;
-    // console.log("TabManager inicializado sin cargar pestañas guardadas");
   },
   // No guardar pestañas entre sesiones
   saveTabs: function() {
@@ -557,43 +1234,47 @@ let tabManager = {
 
 // Crea la ventana principal y carga el HTML
 function createMainWindow() {
+  const initialBounds = getValidatedWindowBounds();
+  const shouldStartMaximized = configManager.getWindowMaximized();
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    x: initialBounds.x,
+    y: initialBounds.y,
+    width: initialBounds.width,
+    height: initialBounds.height,
     minWidth: 900,
     minHeight: 650,
     icon: path.join(__dirname, 'icons', 'icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'), // Esto está bien si preload.js está junto a main.js
+      preload: path.join(__dirname, 'preload.js'),
       partition: APP_SESSION_PARTITION,
       contextIsolation: true,
       nodeIntegration: false,
       devTools: true,
       sandbox: true,
       spellcheck: true,
-      nativeWindowOpen: true, // <-- Agrega esto
+      nativeWindowOpen: true,
     },
-    titleBarStyle: 'hidden', // Opcional, para macOS
-    frame: false,            // <--- Esto es lo importante
+    titleBarStyle: 'hidden',
+    frame: false,
     autoHideMenuBar: true,
     show: false,
     backgroundColor: '#FFFFFF',
   });
   mainWindow.setMaxListeners(0);
 
-  // Desarrollo: cargar desde servidor Vite
-  // Producción: cargar desde el archivo HTML compilado
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
     // mainWindow.webContents.openDevTools();
   } else {
-    // Corrected path to load from the 'src' directory
     mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
   }
 
   // Mostrar la ventana cuando esté lista
   mainWindow.once('ready-to-show', () => {
-    mainWindow.maximize();
+    if (shouldStartMaximized) {
+      mainWindow.maximize();
+    }
     mainWindow.show();
 
     tabManager.tabs = [];
@@ -611,28 +1292,57 @@ function createMainWindow() {
 
   mainWindow.on('resize', () => {
     updateActiveTabBounds();
+    syncFloatingModalWindowBounds();
+    persistMainWindowState();
   });
 
-  // Asegurar que el BrowserView se redimensione también al maximizar/minimizar
+  mainWindow.on('move', () => {
+    syncFloatingModalWindowBounds();
+    persistMainWindowState();
+  });
+
   mainWindow.on('maximize', () => {
-    // Pequeño delay para asegurar que la maximización termine
-    setTimeout(() => updateActiveTabBounds(), 50);
+    persistMainWindowState(true);
+    setTimeout(() => {
+      updateActiveTabBounds();
+      syncFloatingModalWindowBounds();
+    }, 50);
   });
 
   mainWindow.on('unmaximize', () => {
-    // Pequeño delay para asegurar que la restauración termine
-    setTimeout(() => updateActiveTabBounds(), 50);
+    persistMainWindowState(true);
+    setTimeout(() => {
+      updateActiveTabBounds();
+      syncFloatingModalWindowBounds();
+      persistMainWindowState(true);
+    }, 50);
   });
 
   mainWindow.on('closed', () => {
+    if (saveWindowStateTimeout) {
+      clearTimeout(saveWindowStateTimeout);
+      saveWindowStateTimeout = null;
+    }
+    hideTabDragGhost();
+    stopTabDragGhostFollow();
+    closeFloatingModal();
+    if (floatingModalWindow && !floatingModalWindow.isDestroyed()) {
+      floatingModalWindow.close();
+    }
+    if (tabDragGhostWindow && !tabDragGhostWindow.isDestroyed()) {
+      tabDragGhostWindow.close();
+    }
     mainWindow = null;
   });
   
   // Modificar el comportamiento al cerrar la ventana
   mainWindow.on('close', (event) => {
+    persistMainWindowState(true);
+
     // En lugar de cerrar, ocultar la ventana si el tray está activo
     if (tray && !app.isQuitting) {
       event.preventDefault();
+      closeFloatingModal();
       mainWindow.hide();
     } else {
       // Comportamiento normal de cierre si no hay tray o si se está saliendo
@@ -672,14 +1382,33 @@ function createMainWindow() {
   });
 }
 
-// Función auxiliar para crear un BrowserView
-function createBrowserView(options = {}) {
+function attachTabViewToMainWindow(view) {
+  if (!mainWindow || !view || view.__attachedToMainWindow) return;
+
+  mainWindow.contentView.addChildView(view);
+  view.__attachedToMainWindow = true;
+  activeMainContentView = view;
+}
+
+function detachTabViewFromMainWindow(view) {
+  if (!mainWindow || !view || !view.__attachedToMainWindow) return;
+
+  mainWindow.contentView.removeChildView(view);
+  view.__attachedToMainWindow = false;
+
+  if (activeMainContentView === view) {
+    activeMainContentView = null;
+  }
+}
+
+// Función auxiliar para crear una WebContentsView
+function createWebContentsView(options = {}) {
   const userAgent = getEffectiveUserAgent();
   const appId = options.appId || null;
   const partition = options.partition || APP_SESSION_PARTITION;
   const isPrimary = Boolean(options.isPrimary);
   
-  const view = new BrowserView({
+  const view = new WebContentsView({
     webPreferences: {
       partition,
       nodeIntegration: false,
@@ -687,7 +1416,7 @@ function createBrowserView(options = {}) {
       sandbox: true,
       devTools: true,
       webSecurity: true,
-      nativeWindowOpen: true, // <-- Agrega esto
+      nativeWindowOpen: true,
     },
   });
   
@@ -940,23 +1669,7 @@ function updateActiveTabBounds() {
   }
 }
 
-function setSettingsOverlayVisible(visible) {
-  if (!mainWindow || !tabManager.activeTabId) return;
-  const activeTab = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
-  if (!activeTab) return;
-
-  const currentViews = mainWindow.getBrowserViews();
-  const hasView = currentViews.includes(activeTab.view);
-
-  if (visible && hasView) {
-    mainWindow.removeBrowserView(activeTab.view);
-  } else if (!visible && !hasView) {
-    mainWindow.addBrowserView(activeTab.view);
-    updateActiveTabBounds();
-  }
-}
-
-// Crea una nueva pestaña (BrowserView) con la URL indicada
+// Crea una nueva pestaña (WebContentsView) con la URL indicada
 function createTab(urlOrConfig, makeActive = false) {
   if (!mainWindow) return null;
 
@@ -974,9 +1687,8 @@ function createTab(urlOrConfig, makeActive = false) {
     return null;
   }
 
-  // console.log(`Creando nueva pestaña con URL: ${url}, makeActive: ${makeActive}`);
   
-  const view = createBrowserView({ partition, appId, isPrimary });
+  const view = createWebContentsView({ partition, appId, isPrimary });
 
   let bounds = mainWindow.getContentBounds();
   const tabBarHeight = 32; // Altura de la barra de pesta\u00f1as (32px)
@@ -1012,7 +1724,6 @@ function createTab(urlOrConfig, makeActive = false) {
   
   // Si es la pestaña activa, ponerla en primer plano inmediatamente
   if (makeActive) {
-    // console.log(`Activando pestaña ${tabId} inmediatamente`);
     switchTab(tabId);
   }
   
@@ -1021,17 +1732,21 @@ function createTab(urlOrConfig, makeActive = false) {
 
   const updateTabUrl = (nextUrl) => {
     if (!nextUrl || nextUrl === 'about:blank') return;
+    const previousUrls = [tab.url, tab.restorableUrl];
     const sanitizedUrl = sanitizeRestorableUrl(nextUrl);
     tab.url = sanitizedUrl;
 
     if (isOfficeDocumentUrl(nextUrl)) {
       tab.restorableUrl = sanitizedUrl;
+      updateFavoriteEntryForTab(tab, previousUrls);
       return;
     }
 
     if (!tab.restorableUrl || !isOfficeDocumentUrl(tab.restorableUrl)) {
       tab.restorableUrl = sanitizedUrl;
     }
+
+    updateFavoriteEntryForTab(tab, previousUrls);
   };
   
   // Intercepta eventos de navegación
@@ -1109,17 +1824,16 @@ function createTab(urlOrConfig, makeActive = false) {
     tab.fullTitle = title;
     let shortTitle = title.split(' - ')[0];
     tab.title = shortTitle;
+    updateFavoriteEntryForTab(tab);
     sendTabsUpdate();
   });
   
   // Actualizar pestañas después de cargar
   view.webContents.on('did-finish-load', () => {
-    // console.log(`Pestaña ${tabId} cargada: ${view.webContents.getTitle()}`);
     
     // Si esta pestaña debe ser activa, asegurarse de activarla de nuevo
     if (makeActive && tabManager.activeTabId === tabId) {
-      // console.log(`Reactivando pestaña ${tabId} después de cargar`);
-      mainWindow.addBrowserView(view);
+      attachTabViewToMainWindow(view);
       updateActiveTabBounds();
       sendTabsUpdate();
     }
@@ -1143,13 +1857,11 @@ function createTab(urlOrConfig, makeActive = false) {
 
 // Cambia la pestaña activa
 function switchTab(tabId) {
-  // console.log(`Cambiando a pestaña: ${tabId}`);
   
   if (tabManager.activeTabId) {
     let current = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
     if (current) {
-      // console.log(`Quitando pestaña actual: ${tabManager.activeTabId}`);
-      mainWindow.removeBrowserView(current.view);
+      detachTabViewFromMainWindow(current.view);
     }
   }
   
@@ -1157,8 +1869,7 @@ function switchTab(tabId) {
   let newActive = tabManager.tabs.find(tab => tab.id === tabId);
   
   if (newActive) {
-    // console.log(`Añadiendo nueva pestaña activa: ${tabId}`);
-    mainWindow.addBrowserView(newActive.view);
+    attachTabViewToMainWindow(newActive.view);
     updateActiveTabBounds();
   } else {
     // console.warn(`No se encontró la pestaña ${tabId}`);
@@ -1187,6 +1898,7 @@ function closeTab(tabId) {
         tabManager.activeTabId = null;
       }
     }
+    detachTabViewFromMainWindow(tab.view);
     tab.view.webContents.destroy();
     tabManager.tabs.splice(index, 1);
     
@@ -1289,7 +2001,8 @@ function sendTabsUpdate() {
       title: tab.title,
       fullTitle: tab.fullTitle || tab.title,
       url: tab.url,
-      isPrimary: Boolean(tab.isPrimary)
+      isPrimary: Boolean(tab.isPrimary),
+      isFavorite: isFavoriteTab(tab)
     }));
     mainWindow.webContents.send('tabs-updated', { tabs: tabsForUI, activeTabId: tabManager.activeTabId });
   }
@@ -1323,7 +2036,20 @@ ipcMain.on('reorder-tabs', (event, orderedIds) => {
 });
 
 ipcMain.on('detach-tab-to-window', (event, tabId) => {
+  hideTabDragGhost();
   detachTabToWindow(tabId);
+});
+
+ipcMain.on('show-tab-drag-ghost', (event, payload) => {
+  showTabDragGhost(payload);
+});
+
+ipcMain.on('move-tab-drag-ghost', (event, payload) => {
+  moveTabDragGhost(payload);
+});
+
+ipcMain.on('hide-tab-drag-ghost', () => {
+  hideTabDragGhost();
 });
 
 ipcMain.on('window-control', (event, action) => {
@@ -1357,23 +2083,46 @@ ipcMain.handle('toggle-maximize', () => {
   return true;
 });
 
-ipcMain.handle('capture-active-tab-preview', async () => {
-  if (!mainWindow || !tabManager.activeTabId) return null;
-
-  const activeTab = tabManager.tabs.find(tab => tab.id === tabManager.activeTabId);
-  if (!activeTab || !activeTab.view) return null;
-
-  try {
-    const image = await activeTab.view.webContents.capturePage();
-    return image.toDataURL();
-  } catch (error) {
-    console.error('No se pudo capturar la vista activa:', error);
-    return null;
-  }
+ipcMain.on('toggle-floating-modal', (event, config) => {
+  toggleFloatingModal(config || {});
 });
 
-ipcMain.on('toggle-settings-overlay', (event, visible) => {
-  setSettingsOverlayVisible(Boolean(visible));
+ipcMain.on('open-floating-modal', (event, config) => {
+  const type = config && typeof config.type === 'string' ? config.type : null;
+  const payload = config && typeof config.payload === 'object' ? config.payload : {};
+  if (!type) return;
+  openFloatingModal(type, payload);
+});
+
+ipcMain.on('close-floating-modal', () => {
+  closeFloatingModal();
+});
+
+ipcMain.on('floating-tab-info:hover', (_event, payload = {}) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('tab-info-hover-state', { inside: Boolean(payload.inside) });
+});
+
+ipcMain.on('floating-tab-info:toggle-favorite', (_event, payload = {}) => {
+  const result = toggleFavoriteForTab(Number(payload.tabId));
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('tab-info-favorite-toggle', result);
+  }
+  sendTabsUpdate();
+});
+
+ipcMain.on('floating-tab-info:detach', (_event, payload = {}) => {
+  closeFloatingModal();
+  detachTabToWindow(Number(payload.tabId));
+});
+
+ipcMain.handle('floating-modal:get-state', () => {
+  return floatingModalState;
+});
+
+ipcMain.on('floating-modal:notify', (event, payload) => {
+  if (!payload || !payload.message) return;
+  showWebNotification(payload.message, payload.type || 'info');
 });
 
 ipcMain.on('open-url-in-active-tab', (event, url) => {
@@ -1454,73 +2203,12 @@ function showWebNotification(message, type = 'info') {
 
 // Crear el icono de la bandeja del sistema
 function createTray() {
-  const iconPath = path.join(__dirname, 'icons', 'icon.png'); // Asegúrate que la ruta al icono es correcta
+  const iconPath = path.join(__dirname, 'icons', 'icon.png');
   tray = new Tray(iconPath);
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Mostrar/Ocultar',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
-        }
-      }
-    },
-    {
-      label: 'Recargar App',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.reload();
-        }
-      }
-    },
-    {
-      label: 'Aplicaciones',
-      submenu: [
-        {
-          label: 'Word',
-          click: () => openTrayAppWindow('word')
-        },
-        {
-          label: 'Excel',
-          click: () => openTrayAppWindow('excel')
-        },
-        {
-          label: 'PowerPoint',
-          click: () => openTrayAppWindow('powerpoint')
-        },
-        {
-          label: 'Outlook',
-          click: () => openTrayAppWindow('outlook')
-        },
-        {
-          label: 'OneDrive',
-          click: () => openTrayAppWindow('onedrive')
-        },
-        {
-          label: 'Teams',
-          click: () => openTrayAppWindow('teams')
-        },
-        {
-          label: 'OneNote',
-          click: () => openTrayAppWindow('onenote')
-        }
-      ]
-    },
-    { type: 'separator' },
-    {
-      label: 'Salir',
-      click: () => {
-        app.isQuitting = true; // Marcar que se está saliendo intencionadamente
-        app.quit();
-      }
-    }
-  ]);
-
   tray.setToolTip('O365 Linux Desktop');
-  tray.setContextMenu(contextMenu);
+  rebuildTrayMenu();
 
-  // Opcional: Abrir la ventana al hacer clic en el icono del tray
   tray.on('click', () => {
     if (mainWindow) {
       mainWindow.isVisible() ? mainWindow.focus() : mainWindow.show();
@@ -1644,14 +2332,6 @@ if (!gotTheLock) {
     }
     
     // Mostrar información de configuración en la consola (solo en desarrollo)
-    if (isDev) {
-      // console.log('Información de la aplicación:');
-      // console.log(`- Sistema: ${os.platform()} ${os.release()} (${os.arch()})`);
-      // console.log(`- Node.js: ${process.versions.node}`);
-      // console.log(`- Electron: ${process.versions.electron}`);
-      // console.log(`- Modo: ${isDev ? 'Desarrollo' : 'Producción'}`);
-      // console.log(`- Directorio de datos: ${app.getPath('userData')}`);
-    }
   });
 
   // Manejar el evento before-quit para asegurar la salida correcta

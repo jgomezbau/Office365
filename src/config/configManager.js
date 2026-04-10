@@ -13,14 +13,16 @@ class ConfigManager {
         reopenTabsOnLaunch: false,
         tabs: [],
         activeTabId: null,
-        recentVisits: []
+        recentVisits: [],
+        favorites: [],
+        windowBounds: null,
+        windowMaximized: true
       },
       name: 'config',
       // Asegurar que la configuración es accesible solo por el usuario actual
       cwd: app ? app.getPath('userData') : undefined,
     });
-    
-    console.log(`Configuración cargada desde: ${this.store.path}`);
+
   }
 
   // Obtener la URL principal
@@ -67,6 +69,14 @@ class ConfigManager {
     }
   }
 
+  getFavorites() {
+    return this.store.get('favorites', []);
+  }
+
+  setFavorites(favorites) {
+    this.store.set('favorites', Array.isArray(favorites) ? favorites : []);
+  }
+
   // Obtener tema
   getTheme() {
     return this.store.get('theme', 'system');
@@ -85,6 +95,32 @@ class ConfigManager {
   // Establecer user agent personalizado
   setUserAgent(useragent) {
     this.store.set('useragent', useragent);
+  }
+
+  getWindowBounds() {
+    return this.store.get('windowBounds', null);
+  }
+
+  setWindowBounds(bounds) {
+    if (!bounds || typeof bounds !== 'object') {
+      this.store.set('windowBounds', null);
+      return;
+    }
+
+    this.store.set('windowBounds', {
+      x: Number(bounds.x),
+      y: Number(bounds.y),
+      width: Number(bounds.width),
+      height: Number(bounds.height)
+    });
+  }
+
+  getWindowMaximized() {
+    return this.store.get('windowMaximized', true);
+  }
+
+  setWindowMaximized(maximized) {
+    this.store.set('windowMaximized', Boolean(maximized));
   }
 
   // Limpiar la configuración

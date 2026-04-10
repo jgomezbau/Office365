@@ -1,372 +1,198 @@
-# 🚀 O365 Linux Desktop
+# O365 Linux Desktop
 
-> Una aplicación de escritorio moderna y potente para acceder a Microsoft 365® desde Linux, macOS y Windows.
+Aplicación de escritorio basada en Electron para trabajar con Microsoft 365 desde Linux con una interfaz de pestañas propia, integración con bandeja del sistema y soporte para abrir documentos y aplicaciones de Microsoft 365 sin depender de un navegador tradicional.
 
-[![Electron](https://img.shields.io/badge/Electron-41.2.0-blue)]()
-[![Node](https://img.shields.io/badge/Node.js-18+-green)]()
-[![License](https://img.shields.io/badge/License-MIT-orange)]()
-[![Version](https://img.shields.io/badge/Version-2.6.0-brightgreen)]()
+## Resumen
 
-## 📋 Tabla de contenidos
+O365 Linux Desktop abre Microsoft 365 dentro de una ventana nativa con una barra de pestañas personalizada. La aplicación está orientada principalmente a Linux y en la configuración actual de desarrollo arranca usando X11 (`--ozone-platform=x11`).
 
-- [Descripción](#descripción)
-- [Características](#características)
-- [Requisitos del sistema](#requisitos-del-sistema)
-- [Instalación](#instalación)
-- [Uso](#uso)
-- [Configuración](#configuración)
-- [Desarrollo](#desarrollo)
-- [Scripts disponibles](#scripts-disponibles)
-- [Solución de problemas](#solución-de-problemas)
-- [Contribuir](#contribuir)
-- [Licencia](#licencia)
+El proyecto incluye:
+- una pestaña principal fija para Microsoft 365
+- apertura de documentos y aplicaciones en pestañas internas
+- desacople de pestañas a ventanas separadas
+- menú de bandeja con accesos rápidos y favoritos
+- modales flotantes para configuración, lanzador de aplicaciones y tarjeta contextual de pestaña
 
-## 📝 Descripción
+## Funcionalidades actuales
 
-**O365 Linux Desktop** es una aplicación de escritorio desarrollada con **Electron** que permite acceder a Microsoft 365® (Office 365®) directamente desde tu escritorio, sin depender de un navegador web.
+### Navegación y pestañas
+- Barra de pestañas personalizada con una pestaña principal fija (`M365 Copilot`).
+- Creación de nuevas pestañas desde el botón `+`.
+- Cambio, recarga y cierre de pestañas.
+- Reordenamiento de pestañas mediante drag and drop.
+- Desacople de pestañas a una ventana separada:
+  - desde la tarjeta de información de pestaña
+  - o arrastrando una pestaña fuera de la barra
+- Sistema de overflow horizontal para pestañas con navegación por flechas cuando no entran todas en pantalla.
+- La pestaña activa se mantiene visible dentro de la ventana de overflow.
 
-Es especialmente útil para usuarios de **Linux** que no tienen acceso a una aplicación oficial nativa completa de Microsoft Office. La aplicación proporciona una experiencia fluida e integrada con soporte para:
+### Integración con Microsoft 365
+- Apertura interna de enlaces y documentos de Microsoft 365, Office, OneDrive, SharePoint, Outlook, Teams y OneNote.
+- Normalización de URLs de lanzamiento para aplicaciones de Microsoft 365.
+- Manejo de popups internos para flujos de Outlook y otras ventanas necesarias.
+- Apertura de enlaces externos en el navegador del sistema cuando no corresponden al dominio/flujo interno.
 
-- ✅ Excel, Word, PowerPoint, OneNote, Outlook
-- ✅ SharePoint y OneDrive
-- ✅ Teams y Copilot
-- ✅ Gestión de pestañas tipo navegador
-- ✅ Cambio entre cuentas personal y corporativa
+### Tarjeta de información de pestaña
+- Tarjeta contextual flotante al pasar el mouse sobre una pestaña.
+- Muestra icono, título, servicio, ubicación inferida y dato de “Última vez guardado”.
+- Permite:
+  - marcar o desmarcar favoritos
+  - desacoplar la pestaña a una ventana
+- La pestaña principal no muestra esta tarjeta.
 
-## ✨ Características principales
+### Favoritos y bandeja del sistema
+- Los favoritos se guardan de forma persistente.
+- El menú de bandeja incluye:
+  - mostrar/ocultar la ventana principal
+  - recargar la aplicación
+  - submenú `Favoritos`
+  - submenú `Aplicaciones`
+  - salir
+- Los favoritos del tray se agrupan por tipo usando iconos y separadores entre grupos no vacíos.
+- El submenú `Aplicaciones` abre accesos directos a:
+  - Word
+  - Excel
+  - PowerPoint
+  - Outlook
+  - OneDrive
+  - Teams
+  - OneNote
 
-### 🎯 Funcionalidades de usuario
+### Configuración y estado persistente
+- Modal flotante de configuración.
+- Configuración persistente para:
+  - URL principal
+  - User-Agent personalizado
+  - tema (`system`, `light`, `dark`)
+  - reapertura de pestañas/documentos al iniciar
+- Restauración opcional de pestañas al arrancar.
+- Persistencia del tamaño, posición y estado maximizado de la ventana principal.
+- Validación de bounds para evitar reabrir la ventana fuera de pantalla en cambios de monitor.
 
-- **Interfaz de escritorio nativa**: Ejecuta Microsoft 365® Web directamente en tu escritorio sin navegador
-- **Pestañas independientes**: Manipula varios documentos simultáneamente con pestañas tipo navegador
-- **Detección automática de archivos**: Identifica automáticamente el tipo de archivo (Excel, Word, PowerPoint, etc.) y muestra el icono correspondiente
-- **Navegación inteligente**: Las URLs de Microsoft 365 se abren en nuevas pestañas dentro de la aplicación
-- **Soporte multi-cuenta**: Cambia fácilmente entre cuentas personal y corporativa
-- **Configuración persistente**: Guarda tus preferencias (URL principal, tema, user agent)
+### Interacción del sistema
+- Soporte de permisos para:
+  - cámara y micrófono
+  - notificaciones
+  - portapapeles
+  - fullscreen
+- Soporte para `getDisplayMedia` / compartir pantalla mediante `desktopCapturer`.
+- Atajos de portapapeles manejados también a nivel de vista:
+  - `Ctrl+C`, `Ctrl+V`
+  - `Shift+Insert`
+  - `Shift+Delete`
+- Registro del protocolo personalizado `ms365://`.
+- Bloqueo de múltiples instancias con recuperación de foco en la ventana existente.
 
-### 🛠️ Características técnicas
+### Menú contextual y apertura con aplicaciones nativas
+- Menú contextual personalizado dentro de las vistas web.
+- Para enlaces a documentos compatibles, el menú contextual puede ofrecer apertura con aplicaciones nativas detectadas en Linux.
+- Para imágenes se ofrecen acciones como copiar y guardar.
+- En desarrollo, también se expone inspección de elementos desde el menú contextual.
 
-- **Sistema de temas**: Modo claro, oscuro o automático según el sistema
-- **Menú contextual personalizado**: Cortar, copiar, pegar, recargar, inspeccionar elementos
-- **Permisos multimedia**: Soporte para cámara y micrófono
-- **Interceptor de protocolos**: Manejo de protocolos especiales de Office (ms-word:, ms-excel:, etc.)
-- **Panel de configuración**: Modifica URL principal, user agent y tema desde la interfaz
-- **Bandeja del sistema** (Tray): Minimiza a bandeja y recarga rápida desde el menú
+## Plataforma objetivo
 
-## 🖥️ Requisitos del sistema
+### Soportada en la configuración actual
+- Linux
+- Entornos X11 para la ejecución recomendada actual
 
-### Mínimos
-- **CPU**: Procesador de 2 GHz o superior
-- **RAM**: 2 GB mínimo (4 GB recomendado)
-- **Almacenamiento**: 200 MB de espacio libre
-- **Conexión**: Internet requerida
+### Notas importantes
+- El script `npm start` fuerza `--ozone-platform=x11`.
+- La configuración de empaquetado actual genera artefactos Linux:
+  - `AppImage`
+  - `deb`
+  - `tar.gz`
+- Aunque parte del código es portable por Electron, este repositorio está preparado y documentado actualmente como objetivo Linux.
 
-### Software
-- **Linux**: Ubuntu 18.04+, Debian 10+, Fedora, o cualquier distribución moderna
-- **macOS**: 10.13+
-- **Windows**: Windows 7+ (aunque se recomienda Windows 10+)
+## Requisitos
 
-**Nota**: Para desarrollo local necesitas **Node.js 18+** y **npm 8+**.
+- Node.js 18 o superior
+- npm 8 o superior
+- Linux moderno con entorno gráfico compatible con Electron
 
-## 📦 Instalación
+## Desarrollo
 
-### Opción 1: Descargar paquete precompilado (Recomendado)
+### Instalar dependencias
 
-#### Linux
-```bash
-# AppImage (funciona en cualquier distro)
-wget https://github.com/jgomezbau/O365LinuxDesktop/releases/download/v2.6.0/O365-Linux-Desktop-2.6.0.AppImage
-chmod +x O365-Linux-Desktop-2.6.0.AppImage
-./O365-Linux-Desktop-2.6.0.AppImage
-
-# O Debian/.deb (para Debian, Ubuntu, etc.)
-sudo apt-get install ./o365linuxdesktop_2.6.0_amd64.deb
-
-# O tar.gz (extrae manualmente)
-tar -xzf O365-Linux-Desktop-2.6.0.tar.gz
-cd O365-Linux-Desktop-2.6.0
-./o365linuxdesktop
-```
-
-#### Windows
-```bash
-# Descargar el installer .exe desde releases
-# O descargar el zip y ejecutar el .exe
-```
-
-#### macOS
-```bash
-# Descargar el .dmg desde releases
-# O descargar el .zip y ejecutar la aplicación
-```
-
-### Opción 2: Instalar desde fuente (Desarrollo)
-
-#### 1. Clonar repositorio
-```bash
-git clone https://github.com/jgomezbau/O365LinuxDesktop.git
-cd O365LinuxDesktop
-```
-
-#### 2. Instalar dependencias
 ```bash
 npm install
 ```
 
-#### 3. Ejecutar en modo desarrollo
+### Ejecutar la aplicación
+
 ```bash
 npm start
 ```
 
-#### 4. Compilar (opcional)
+Esto ejecuta:
+
 ```bash
-# Compilar para la plataforma actual
+electron . --ozone-platform=x11
+```
+
+### Scripts disponibles
+
+```bash
+npm start
 npm run build
-
-# Compilar solo para Linux
 npm run build:linux
-
-# Compilar solo AppImage
 npm run build:appimage
-
-# Compilar solo .deb
 npm run build:deb
 ```
 
-Los paquetes compilados se guardarán en la carpeta `dist/`.
+## Empaquetado
 
-## 🎮 Uso
+La configuración de `electron-builder` actual genera builds Linux con estos formatos:
+- AppImage
+- deb
+- tar.gz
 
-### Interfaz principal
+Los artefactos se escriben en `dist/`.
 
-```text
-┌─────────────────────────────────────────┐
-│ O365 Linux Desktop [+] [⚙] [-] [□] [×] │  ← Barra de herramientas
-├─────────────────────────────────────────┤
-│  Pestaña1.xlsx | Pestaña2.docx | Pestaña3
-│                                         │
-│                                         │
-│         Contenido de Microsoft 365      │
-│                                         │
-│                                         │
-└─────────────────────────────────────────┘
-```
-
-### Operaciones básicas
-
-#### Abrir nuevo documento
-1. Desde Microsoft 365® web: Haz clic en cualquier archivo
-2. Se abrirá automáticamente en una nueva pestaña
-3. El tipo de archivo se detecta automáticamente (Excel, Word, etc.)
-
-#### Cambiar entre pestañas
-- Haz clic en la pestaña que deseas
-- La pestaña activa se destaca
-
-#### Cerrar pestaña
-- Haz clic en la [×] de la pestaña
-
-#### Recargar pestaña
-- Haz clic en el botón de recarga [↻] de la pestaña
-
-#### Crear nueva pestaña
-- Haz clic en el botón [+] para abrir la URL principal configurada
-
-### Menú contextual (Clic derecho)
-
-| Opción | Descripción |
-|--------|-------------|
-| **Inspeccionar elemento** | Abre DevTools para inspeccionar y depurar |
-| **Recargar página** | Recarga la página actual |
-| **Abrir en nueva pestaña** | Abre el enlace en una nueva pestaña |
-| **Copiar dirección** | Copia la URL del enlace |
-| **Copiar imagen** | Copia la imagen seleccionada |
-| **Cortar/Copiar/Pegar** | Operaciones normales de portapapeles |
-
-## ⚙️ Configuración
-
-### Panel de configuración
-
-Haz clic en el ícono de engranaje (⚙) en la barra de herramientas para acceder a:
-
-#### URL principal
-- **Corporativa**: `https://m365.cloud.microsoft/?auth=2`
-- **Personal**: `https://m365.cloud.microsoft/?auth=1`
-
-Puedes personalizar esta URL según tus necesidades.
-
-#### User Agent personalizado (Opcional)
-- Algunos servicios pueden requerir un User Agent específico
-- Déjalo en blanco para usar el User Agent predeterminado de Electron
-
-#### Tema
-- **Predeterminado del sistema**: Sigue las preferencias del SO
-- **Claro**: Interfaz blanca
-- **Oscuro**: Interfaz oscura
-
-### Archivo de configuración
-
-La configuración se almacena en una carpeta de datos de usuario generada por Electron según el nombre del producto. Si además actualizas `productName` y `name` en `package.json`, la ruta esperada quedará alineada con el nuevo nombre de la aplicación.
-
-## 🧠 Desarrollo
-
-### Estructura del proyecto
+## Estructura principal del proyecto
 
 ```text
 O365LinuxDesktop/
-├── main.js                 # Punto de entrada Electron
-├── preload.js              # Script de preload seguro
-├── package.json            # Dependencias y scripts
+├── main.js
+├── preload.js
+├── modal-preload.js
+├── package.json
+├── icons/
 ├── src/
-│   ├── index.html          # Interfaz HTML
-│   ├── renderer.js         # Lógica del frontend (renderer)
-│   ├── styles.css          # Estilos CSS
+│   ├── index.html
+│   ├── renderer.js
+│   ├── styles.css
+│   ├── modal.html
+│   ├── modal.js
+│   ├── modal.css
 │   ├── config/
-│   │   ├── configManager.js    # Gestión de configuración
-│   │   └── createWindow.js     # Creación de ventanas
+│   │   └── configManager.js
 │   └── utils/
-│       ├── urlHandler.js       # Manejo de URLs
-│       └── nativeAppHandler.js # Gestión de aplicaciones nativas
-├── icons/                  # Iconos de la aplicación
-└── dist/                   # Paquetes compilados (después de build)
+│       ├── nativeAppHandler.js
+│       └── urlHandler.js
+└── dist/
 ```
 
-### Stack tecnológico
+## Configuración persistente
 
-| Categoría | Tecnología |
-|-----------|-----------|
-| **Framework** | Electron 41.2.0 |
-| **Frontend** | HTML5, CSS3, Vanilla JavaScript |
-| **Backend** | Node.js, Electron API |
-| **Almacenamiento** | electron-store 11.0.2 |
-| **Parsing XML** | fast-xml-parser 5.5.11 |
-| **Build** | electron-builder 26.8.1 |
+La aplicación almacena configuración y estado mediante `electron-store`, incluyendo:
+- preferencias de tema
+- URL principal
+- User-Agent
+- favoritos
+- pestañas restaurables
+- estado y bounds de ventana
 
-### Convenciones de código
+## Limitaciones y alcance actual
 
-- **Indentación**: 2 espacios
-- **Estilo**: JavaScript moderno (ES6+)
-- **Comentarios**: JSDoc donde sea necesario
-- **Nombres**: camelCase para variables/funciones, PascalCase para clases
+- La documentación y el empaquetado están orientados a Linux.
+- La restauración de pestañas depende de URLs restaurables; si un documento ya no está disponible, la aplicación lo omite en sesiones posteriores.
+- La información mostrada en la tarjeta de pestaña se infiere desde título, URL y metadatos disponibles; no todas las fuentes exponen la misma calidad de datos.
+- La detección de aplicaciones nativas para “Abrir con…” está orientada a Linux.
 
-## 📚 Scripts disponibles
+## Licencia
 
-```bash
-# Desarrollo
-npm start                  # Ejecuta la aplicación en modo desarrollo
+MIT
 
-# Compilación
-npm run build             # Compila para la plataforma actual
-npm run build:linux       # Compila AppImage, .deb y tar.gz
-npm run build:appimage    # Solo AppImage
-npm run build:deb         # Solo .deb para Debian/Ubuntu
-```
+## Aviso
 
-## 🐛 Solución de problemas
-
-### La aplicación no inicia
-```bash
-# Verifica Node.js
-node --version
-
-# Reinstala las dependencias
-rm -rf node_modules package-lock.json
-npm install
-
-# Ejecuta con debug
-DEBUG=* npm start
-```
-
-### Problemas de GPU/Renderizado en Linux
-```bash
-# Si ves parpadeos o problemas de GPU:
-npm start -- --disable-gpu
-```
-
-### La ventana no se refresca al maximizar
-- Este problema está solucionado en la versión 2.6.0
-- Si persiste, intenta `npm install` con la versión actual
-
-### No se detecta el tipo de archivo
-- Verifica que el título de la pestaña contenga la extensión del archivo
-- Comprueba en DevTools (`Inspeccionar elemento`) qué URL se está cargando
-
-### Error "Store is not a constructor"
-- Restablece la configuración: elimina el archivo de configuración
-- Reinicia la aplicación
-
-## 🤝 Contribuir
-
-¡Las contribuciones son bienvenidas! Por favor sigue estos pasos:
-
-### 1. Fork del repositorio
-```bash
-# En GitHub, haz clic en "Fork"
-```
-
-### 2. Clona tu fork
-```bash
-git clone https://github.com/TU_USUARIO/O365LinuxDesktop.git
-cd O365LinuxDesktop
-```
-
-### 3. Crea una rama para tu feature
-```bash
-git checkout -b feature/mi-nueva-funcionalidad
-```
-
-### 4. Haz cambios y commits
-```bash
-git add .
-git commit -m "Añadir mi nueva funcionalidad"
-```
-
-### 5. Push a tu fork
-```bash
-git push origin feature/mi-nueva-funcionalidad
-```
-
-### 6. Crea un Pull Request
-- Ve a GitHub y abre un PR desde tu rama
-- Describe los cambios y proporciona contexto
-
-### Guía de contribución
-- El código debe seguir el estilo del proyecto
-- Prueba tus cambios antes de hacer PR
-- Actualiza la documentación si es necesario
-- Sé descriptivo en los commits
-
-## 📋 Historial de cambios
-
-### v2.6.0 (Actual)
-- ✅ Actualización a Electron 41.2.0
-- ✅ Soporte para compilación a .deb
-- ✅ Corrección de detección de iconos de archivo
-- ✅ Soporte para maximizar/unmaximizar con doble clic
-- ✅ Mejoras en la detección de URLs de Office 365
-
-### v2.5.0
-- Soporte para pestañas independientes
-- Menú contextual personalizado
-- Interceptor de URLs inteligente
-
-## 📄 Licencia
-
-Este proyecto está licenciado bajo la **MIT License**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
-
-## 📞 Contacto y soporte
-
-- **Autor**: Juan Bau (@jgomezbau)
-- **Email**: jgomezbau@gmail.com
-- **Issues/Bugs**: [GitHub Issues](https://github.com/jgomezbau/O365LinuxDesktop/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/jgomezbau/O365LinuxDesktop/discussions)
-
-## 🙏 Agradecimientos
-
-- [Electron](https://www.electronjs.org/) - El framework base
-- [electron-builder](https://www.electron.build/) - Para la compilación
-- [Microsoft 365](https://www.microsoft365.com/) - Servicio integrado por la aplicación
-
----
-
-**Nota**: Este proyecto no está afiliado con Microsoft. Microsoft 365® y Office 365® son marcas registradas de Microsoft Corporation.
+Este proyecto no está afiliado oficialmente con Microsoft. Microsoft 365, Office 365, OneDrive, Outlook, Teams, Word, Excel, PowerPoint y OneNote son marcas de sus respectivos propietarios.

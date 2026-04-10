@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O365 Linux Desktop Modal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="modal.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+</head>
+<body class="modal-host-window">
+  <div id="settings-modal-overlay" class="settings-modal-overlay" data-modal="settings">
+    <div id="settings-backdrop" class="settings-backdrop" aria-hidden="true"></div>
+    <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="settings-header">
+        <h2 id="settings-title">Configuración</h2>
+        <button class="settings-close-btn" id="settings-close-btn" type="button">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <div class="settings-content">
+        <div class="settings-group">
+          <label for="main-url">URL principal</label>
+          <select id="main-url-preset">
+            <option value="custom">Personalizada</option>
+            <option value="corporate">Cuentas corporativas</option>
+            <option value="personal">Cuentas personales</option>
+          </select>
+          <input type="url" id="main-url" placeholder="https://www.microsoft365.com/?auth=1">
+          <p class="settings-helper">URL que se cargará en nuevas pestañas</p>
+        </div>
+
+        <div class="settings-group">
+          <label for="user-agent">User Agent personalizado</label>
+          <input type="text" id="user-agent" placeholder="(Opcional) Personaliza el User Agent">
+          <p class="settings-helper">Deja en blanco para usar el User Agent predeterminado</p>
+        </div>
+
+        <div class="settings-group">
+          <label for="theme-select">Tema</label>
+          <select id="theme-select">
+            <option value="system">Predeterminado del sistema</option>
+            <option value="light">Claro</option>
+            <option value="dark">Oscuro</option>
+          </select>
+        </div>
+
+        <div class="settings-group settings-checkbox-group">
+          <label class="settings-checkbox-label" for="reopen-tabs-on-launch">
+            <input type="checkbox" id="reopen-tabs-on-launch">
+            <span>Reabrir archivos/pestañas al iniciar</span>
+          </label>
+          <p class="settings-helper">Restaura automáticamente las pestañas abiertas en la sesión anterior.</p>
+        </div>
+      </div>
+      <div class="settings-footer">
+        <button class="settings-cancel-btn" id="settings-cancel-btn" type="button">Cancelar</button>
+        <button class="settings-save-btn" id="settings-save-btn" type="button">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-launcher-overlay" class="app-launcher-overlay" data-modal="launcher">
+    <div id="app-launcher-backdrop" class="app-launcher-backdrop" aria-hidden="true"></div>
+    <div id="app-launcher-panel" class="app-launcher-panel" role="dialog" aria-modal="true" aria-labelledby="app-launcher-title">
+      <div class="app-launcher-header">
+        <p class="app-launcher-eyebrow">Nuevo</p>
+        <h2 id="app-launcher-title">Abrir aplicación</h2>
+      </div>
+      <div id="app-launcher-grid" class="app-launcher-grid"></div>
+    </div>
+  </div>
+
+  <div id="tab-info-card-modal" class="tab-info-card" data-modal="tab-info" aria-hidden="true">
+    <div class="tab-info-card__header">
+      <div id="tab-info-card-icon" class="tab-info-card__icon" aria-hidden="true"></div>
+      <div class="tab-info-card__header-copy">
+        <div id="tab-info-card-title" class="tab-info-card__title"></div>
+        <div id="tab-info-card-service" class="tab-info-card__service"></div>
+      </div>
+    </div>
+    <div class="tab-info-card__section">
+      <div class="tab-info-card__row">
+        <span id="tab-info-card-location-icon" class="material-symbols-rounded tab-info-card__meta-icon" aria-hidden="true">cloud</span>
+        <span id="tab-info-card-location" class="tab-info-card__row-text"></span>
+      </div>
+      <div class="tab-info-card__row">
+        <span class="material-symbols-rounded tab-info-card__meta-icon" aria-hidden="true">schedule</span>
+        <span class="tab-info-card__meta-label">Última vez guardado:</span>
+        <span id="tab-info-card-last-saved" class="tab-info-card__meta-value"></span>
+      </div>
+    </div>
+    <div class="tab-info-card__actions">
+      <button id="tab-info-card-favorite" class="tab-info-card__action" type="button">
+        <span id="tab-info-card-favorite-icon" class="material-symbols-rounded tab-info-card__action-icon" aria-hidden="true">star</span>
+        <span>Favorito</span>
+      </button>
+      <span class="tab-info-card__action-separator" aria-hidden="true"></span>
+      <button id="tab-info-card-detach" class="tab-info-card__action" type="button">
+        <span class="material-symbols-rounded tab-info-card__action-icon" aria-hidden="true">open_in_new</span>
+        <span>Desacoplar a ventana</span>
+      </button>
+    </div>
+  </div>
+
+  <script src="modal.js"></script>
+</body>
+</html>

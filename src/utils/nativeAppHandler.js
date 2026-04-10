@@ -94,8 +94,7 @@ async function detectInstalledApps() {
       result['libreoffice --impress'] = result['libreoffice'];
     }
 
-    console.log('Aplicaciones detectadas:', result);
-    
+
     // Guardar en caché
     detectedAppsCache = result;
     return result;
@@ -177,12 +176,8 @@ async function downloadAndOpenWithApp(url, appCommand) {
     
     const filePath = path.join(tempDir, fileName);
     
-    console.log(`Descargando ${url} a ${filePath}...`);
-    
     // Usar curl para descargar el archivo (más confiable para archivos de SharePoint)
     await execAsync(`curl -L -o "${filePath}" "${url}"`);
-    
-    console.log(`Archivo descargado. Abriendo con: ${appCommand}`);
     
     // Ejecutar la aplicación con el archivo
     const cmd = `${appCommand} "${filePath}"`;
