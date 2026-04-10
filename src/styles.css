@@ -6,9 +6,9 @@
   --ms-bg-color: #ffffff;
   --ms-text-color: #252423;
   --ms-border-color: #e1dfdd;
-  --ms-tab-bg: #f5f5f5;
-  --ms-tab-bg-active: #ffffff;
-  --ms-tab-hover: #edebe9;
+  --ms-tab-bg: #f3f2f1;
+  --ms-tab-bg-active: #f8f7f6;
+  --ms-tab-hover: #f8f7f6;
   --ms-btn-bg: #f3f2f1;
   --ms-btn-hover: #edebe9;
   --ms-accent-color: #0078d4;
@@ -33,8 +33,8 @@
   --ms-text-color: #f3f2f1;
   --ms-border-color: #484644;
   --ms-tab-bg: #2b2b2b;
-  --ms-tab-bg-active: #323130;
-  --ms-tab-hover: #3b3a39;
+  --ms-tab-bg-active: #343332;
+  --ms-tab-hover: #343332;
   --ms-btn-bg: #323130;
   --ms-btn-hover: #3b3a39;
   --ms-accent-color: #2899f5;
@@ -92,6 +92,7 @@ body {
   align-items: center;
   flex: 1;
   min-width: 0;
+  margin-left: 2px;
 }
 
 /* Contenedor para las pestañas */
@@ -101,6 +102,16 @@ body {
   height: 100%;
   gap: 2px;
   min-width: 0;
+}
+
+#tabs.drop-at-end::after {
+  content: "";
+  width: 2px;
+  height: 18px;
+  margin-left: 4px;
+  border-radius: 2px;
+  background-color: var(--ms-accent-color);
+  flex-shrink: 0;
 }
 
 /* Estilos de pestañas individuales */
@@ -114,14 +125,17 @@ body {
   margin-top: 2px;
   margin-right: 2px;
   padding: 0 8px 0 6px;
-  min-width: 120px;
-  max-width: 200px;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
   cursor: pointer;
   transition: all 0.2s ease;
   overflow: hidden;
   position: relative;
   border: 1px solid transparent;
   -webkit-app-region: no-drag;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .tab:hover {
@@ -132,6 +146,57 @@ body {
   background-color: var(--ms-tab-bg-active);
   border-bottom: 2px solid var(--ms-accent-color);
   font-weight: 500;
+}
+
+.tab.primary {
+  cursor: default;
+}
+
+.tab.dragging {
+  opacity: 1;
+  z-index: 3;
+}
+
+.tab.drag-over {
+  box-shadow: inset 2px 0 0 var(--ms-accent-color);
+}
+
+.tab-placeholder {
+  opacity: 0.22;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--ms-accent-color) 35%, transparent);
+  background-color: color-mix(in srgb, var(--ms-tab-hover) 72%, transparent);
+}
+
+.tab-placeholder::before {
+  opacity: 0 !important;
+}
+
+.tab-placeholder .tab-icon,
+.tab-placeholder .tab-title,
+.tab-placeholder .tab-actions {
+  opacity: 0 !important;
+}
+
+.tab-floating {
+  position: fixed;
+  z-index: 1200;
+  margin: 0;
+  pointer-events: none;
+  opacity: 1;
+  background-color: var(--ms-tab-bg-active);
+  border-color: color-mix(in srgb, var(--ms-accent-color) 30%, var(--ms-border-color));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+  transition: none !important;
+}
+
+.tab-floating,
+.tab-floating * {
+  opacity: 1 !important;
+}
+
+body.tab-drag-active {
+  cursor: grabbing;
 }
 
 /* Indicador de Copilot en pestañas */
@@ -177,6 +242,8 @@ body {
   white-space: nowrap;
   flex: 1;
   font-size: 13px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .tab .tab-actions {
@@ -243,6 +310,11 @@ body {
   transform: scale(1.05);
 }
 
+#new-tab-btn.drop-at-end {
+  background-color: var(--ms-btn-hover);
+  box-shadow: inset 2px 0 0 var(--ms-accent-color);
+}
+
 #new-tab-btn:active {
   transform: scale(0.95);
 }
@@ -268,20 +340,6 @@ body {
 
 #settings-btn:hover {
   background-color: var(--ms-btn-hover);
-}
-
-/* Logo de Microsoft Copilot (solo ícono) */
-.ms-logo {
-  display: flex;
-  align-items: center;
-  margin: 0 8px 0 4px;
-  -webkit-app-region: drag;
-}
-
-.ms-logo img {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
 }
 
 /* Modal de configuración */
@@ -323,7 +381,6 @@ body {
   background:
     linear-gradient(180deg, rgba(9, 9, 9, 0.14), rgba(9, 9, 9, 0.3)),
     radial-gradient(circle at top center, rgba(255, 255, 255, 0.04), transparent 42%);
-  backdrop-filter: blur(4px);
 }
 
 .settings-modal {
@@ -382,7 +439,6 @@ body {
   background:
     linear-gradient(180deg, rgba(9, 9, 9, 0.12), rgba(9, 9, 9, 0.28)),
     radial-gradient(circle at top center, rgba(255, 255, 255, 0.05), transparent 40%);
-  backdrop-filter: blur(4px);
 }
 
 .app-launcher-panel {
@@ -562,6 +618,30 @@ body {
   outline: none;
   border-color: var(--ms-accent-color);
   box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+.settings-checkbox-group {
+  margin-bottom: 4px;
+}
+
+.settings-checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.settings-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ms-accent-color);
+  flex-shrink: 0;
+}
+
+.settings-checkbox-label span {
+  display: block;
 }
 
 .settings-footer {

@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId) => ipcRenderer.send('switch-tab', tabId),
   closeTab: (tabId) => ipcRenderer.send('close-tab', tabId),
   reloadTab: (tabId) => ipcRenderer.send('reload-tab', tabId),
+  moveTab: (tabId, targetIndex) => ipcRenderer.send('move-tab', tabId, targetIndex),
+  reorderTabs: (orderedIds) => ipcRenderer.send('reorder-tabs', orderedIds),
+  detachTabToWindow: (tabId) => ipcRenderer.send('detach-tab-to-window', tabId),
   onTabsUpdated: (callback) => {
     ipcRenderer.on('tabs-updated', (event, data) => callback(data));
     // Devolver función para eliminar listener cuando sea necesario
@@ -25,6 +28,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setUserAgent: (userAgent) => ipcRenderer.invoke('set-user-agent', userAgent),
   getTheme: () => ipcRenderer.invoke('get-theme'),
   setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
+  getReopenTabsOnLaunch: () => ipcRenderer.invoke('get-reopen-tabs-on-launch'),
+  setReopenTabsOnLaunch: (enabled) => ipcRenderer.invoke('set-reopen-tabs-on-launch', enabled),
   
   // Sistema
   getVersion: () => ipcRenderer.invoke('get-version'),

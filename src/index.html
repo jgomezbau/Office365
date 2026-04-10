@@ -8,13 +8,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
 </head>
 <body>
-  <div id="app" class="app">
-    <div id="tab-bar" style="-webkit-app-region: drag;">
-      <!-- Logo de Microsoft Copilot - solo ícono -->
-      <div class="ms-logo">
-        <img src="../icons/icon.png" alt="Microsoft 365 Copilot" width="24" height="24">
-      </div>
-      
+    <div id="app" class="app">
+      <div id="tab-bar" style="-webkit-app-region: drag;">
       <!-- Contenedor de pestañas -->
       <div id="tabs-area">
         <div id="tabs"></div>
@@ -75,6 +70,14 @@
               <option value="light">Claro</option>
               <option value="dark">Oscuro</option>
             </select>
+          </div>
+
+          <div class="settings-group settings-checkbox-group">
+            <label class="settings-checkbox-label" for="reopen-tabs-on-launch">
+              <input type="checkbox" id="reopen-tabs-on-launch">
+              <span>Reabrir archivos/pestañas al iniciar</span>
+            </label>
+            <p class="settings-helper">Restaura automáticamente las pestañas abiertas en la sesión anterior.</p>
           </div>
         </div>
         <div class="settings-footer">

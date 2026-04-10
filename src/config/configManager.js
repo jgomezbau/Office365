@@ -10,6 +10,7 @@ class ConfigManager {
         mainUrl: 'https://www.microsoft365.com/?auth=1',
         useragent: '',
         theme: 'system',
+        reopenTabsOnLaunch: false,
         tabs: [],
         activeTabId: null,
         recentVisits: []
@@ -34,26 +35,36 @@ class ConfigManager {
 
   // Obtener todas las pestañas
   getTabs() {
-    // Siempre retornar un array vacío para no cargar pestañas guardadas
-    return [];
+    return this.store.get('tabs', []);
   }
 
   // Guardar pestañas
   saveTabs(tabs) {
-    // Siempre guardar un array vacío para que no persistan pestañas
-    this.store.set('tabs', []);
+    this.store.set('tabs', Array.isArray(tabs) ? tabs : []);
   }
 
   // Obtener ID de pestaña activa
   getActiveTabId() {
-    // Siempre retornar null para forzar la creación de una nueva pestaña
-    return null;
+    return this.store.get('activeTabId', null);
   }
 
   // Establecer ID de pestaña activa
   setActiveTabId(id) {
-    // Guardar null para que no persista entre sesiones
-    this.store.set('activeTabId', null);
+    this.store.set('activeTabId', id ?? null);
+  }
+
+  getReopenTabsOnLaunch() {
+    return this.store.get('reopenTabsOnLaunch', false);
+  }
+
+  setReopenTabsOnLaunch(enabled) {
+    const normalizedValue = Boolean(enabled);
+    this.store.set('reopenTabsOnLaunch', normalizedValue);
+
+    if (!normalizedValue) {
+      this.saveTabs([]);
+      this.setActiveTabId(null);
+    }
   }
 
   // Obtener tema

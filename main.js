@@ -2,7 +2,7 @@ const { app, BrowserWindow, BrowserView, ipcMain, session, Menu, shell, dialog, 
 const path = require('path');
 const configManager = require('./src/config/configManager');
 const os = require('os');
-const { shouldOpenInternally, debugUrlHandling } = require('./src/utils/urlHandler');
+const { shouldOpenInternally } = require('./src/utils/urlHandler');
 const { getAvailableAppsForFile, downloadAndOpenWithApp, detectFileType } = require('./src/utils/nativeAppHandler');
 
 // Verificar si estamos en desarrollo
@@ -13,16 +13,8 @@ let mainWindow;
 let tray = null; // Variable para mantener la referencia al Tray
 const popupWindows = new Set();
 
-function isTrackedOutlookPopupUrl(url) {
-  if (!url || typeof url !== 'string') return false;
-
-  const lowerUrl = url.toLowerCase();
-  return (
-    lowerUrl === 'about:blank' ||
-    lowerUrl.includes('outlook.office.com') ||
-    lowerUrl.includes('outlook.live.com') ||
-    lowerUrl.includes('outlook.cloud.microsoft')
-  );
+function logPrimaryFlow(label, payload) {
+  console.log(`[PRIMARY][${label}]`, payload);
 }
 
 function getAccountModeFromMainUrl(url) {
@@ -69,33 +61,6 @@ function getPreferredTeamsUrl(rawUrl = '') {
   }
 }
 
-function isTrackedOneDriveUrl(url) {
-  if (!url || typeof url !== 'string') return false;
-
-  try {
-    const { hostname, pathname, search } = new URL(url);
-    const lowerHost = hostname.toLowerCase();
-    const lowerPath = pathname.toLowerCase();
-    const lowerSearch = search.toLowerCase();
-
-    return (
-      lowerHost.includes('onedrive') ||
-      lowerHost.includes('sharepoint') ||
-      lowerHost.includes('office.live.com') ||
-      lowerPath.includes('/launch/onedrive') ||
-      lowerPath.includes('/start/onedrive.aspx') ||
-      lowerSearch.includes('login_hint=') ||
-      lowerSearch.includes('realm=')
-    );
-  } catch (error) {
-    return false;
-  }
-}
-
-function logOneDriveTrace(label, payload) {
-  console.log(`[ONEDRIVE][${label}]`, payload);
-}
-
 function getPreferredOneDriveUrl() {
   const accountMode = getAccountModeFromMainUrl(configManager.getMainUrl());
   return accountMode === 'personal'
@@ -109,6 +74,123 @@ function getPreferredOneNoteUrl() {
 
 function getPreferredSharePointUrl() {
   return 'https://www.microsoft365.com/launch/sharepoint';
+}
+
+function isOfficeDocumentUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return false;
+
+  try {
+    const parsedUrl = new URL(rawUrl);
+    const host = parsedUrl.hostname.toLowerCase();
+    const path = parsedUrl.pathname.toLowerCase();
+    const search = parsedUrl.search.toLowerCase();
+
+    if (isOfficeAppLaunchUrl(rawUrl)) {
+      return false;
+    }
+
+    const hasOfficeExtension = [
+      '.doc', '.docx', '.dot', '.dotx',
+      '.xls', '.xlsx', '.xlsm', '.xltx',
+      '.ppt', '.pptx', '.pot', '.potx',
+      '.pdf'
+    ].some((extension) => path.endsWith(extension));
+
+    const isWopiDocumentFlow =
+      path.includes('/_layouts/15/wopiframe.aspx') ||
+      path.includes('/_layouts/15/doc.aspx') ||
+      path.includes('/_layouts/15/guestaccess.aspx');
+
+    const hasDocumentMarkers =
+      path.includes('/:w:/') ||
+      path.includes('/:x:/') ||
+      path.includes('/:p:/') ||
+      search.includes('sourcedoc=') ||
+      search.includes('mobileredirect=true');
+
+    const isDocumentViewerRoute =
+      (
+        host.includes('word.cloud.microsoft') ||
+        host.includes('excel.cloud.microsoft') ||
+        host.includes('powerpoint.cloud.microsoft') ||
+        host.includes('word-edit.officeapps.live.com') ||
+        host.includes('excel.officeapps.live.com') ||
+        host.includes('powerpoint.officeapps.live.com') ||
+        host.includes('officeapps.live.com')
+      ) &&
+      (
+        search.includes('sourcedoc=') ||
+        path.includes('/we/') ||
+        path.includes('/wv/') ||
+        path.includes('/x/_layouts/') ||
+        path.includes('/p/_layouts/')
+      );
+
+    return hasOfficeExtension || isWopiDocumentFlow || hasDocumentMarkers || isDocumentViewerRoute;
+  } catch (error) {
+    return false;
+  }
+}
+
+function openManagedPopupWindow(url, partition = APP_SESSION_PARTITION) {
+  if (!url || url === 'about:blank') return null;
+
+  const popupWindow = new BrowserWindow({
+    width: 1180,
+    height: 820,
+    minWidth: 900,
+    minHeight: 640,
+    show: true,
+    autoHideMenuBar: true,
+    backgroundColor: '#FFFFFF',
+    icon: path.join(__dirname, 'icons', 'icon.png'),
+    webPreferences: {
+      partition,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      nativeWindowOpen: true
+    }
+  });
+
+  popupWindow.webContents.setUserAgent(getEffectiveUserAgent());
+  popupWindow.setMenuBarVisibility(false);
+  trackPopupWindow(popupWindow);
+  popupWindow.loadURL(url);
+
+  return popupWindow;
+}
+
+function openTrayAppWindow(appKey) {
+  let targetUrl = null;
+
+  switch (appKey) {
+    case 'word':
+      targetUrl = normalizeInternalAppUrl('https://www.microsoft365.com/launch/word');
+      break;
+    case 'excel':
+      targetUrl = normalizeInternalAppUrl('https://www.microsoft365.com/launch/excel');
+      break;
+    case 'powerpoint':
+      targetUrl = normalizeInternalAppUrl('https://www.microsoft365.com/launch/powerpoint');
+      break;
+    case 'outlook':
+      targetUrl = getPreferredOutlookUrl();
+      break;
+    case 'onedrive':
+      targetUrl = getPreferredOneDriveUrl();
+      break;
+    case 'teams':
+      targetUrl = getPreferredTeamsUrl();
+      break;
+    case 'onenote':
+      targetUrl = getPreferredOneNoteUrl();
+      break;
+    default:
+      return null;
+  }
+
+  return openManagedPopupWindow(targetUrl, APP_SESSION_PARTITION);
 }
 
 function isOfficeAppLaunchUrl(rawUrl) {
@@ -236,11 +318,10 @@ function shouldAllowNativePopup(url) {
       lowerPath.includes('/authorize') ||
       lowerPath.includes('/oauth2/') ||
       lowerSearch.includes('prompt=') ||
-      lowerSearch.includes('login_hint=') ||
       lowerSearch.includes('scope=') ||
       lowerSearch.includes('response_type=');
 
-    return isMicrosoftAuthHost || isPopupLikeFlow;
+    return isMicrosoftAuthHost && isPopupLikeFlow;
   } catch (error) {
     return false;
   }
@@ -306,94 +387,37 @@ function trackPopupWindow(window) {
   popupWindows.add(window);
   window.setMenuBarVisibility(false);
   const popupWebContents = window.webContents;
-  const popupId = popupWebContents ? popupWebContents.id : null;
 
-  const safeGetPopupUrl = () => {
-    if (!popupWebContents || popupWebContents.isDestroyed()) {
-      return popupUrl;
-    }
+  if (popupWebContents) {
+    popupWebContents.on('did-start-navigation', (event, url, isInPlace, isMainFrame) => {
+      if (!isMainFrame) return;
+      logPrimaryFlow('popup-did-start-navigation', {
+        id: popupWebContents.id,
+        url,
+        isInPlace
+      });
+    });
 
-    try {
-      return popupWebContents.getURL() || popupUrl;
-    } catch (error) {
-      return popupUrl;
-    }
-  };
+    popupWebContents.on('did-redirect-navigation', (event, url, isInPlace, isMainFrame) => {
+      if (!isMainFrame) return;
+      logPrimaryFlow('popup-did-redirect-navigation', {
+        id: popupWebContents.id,
+        url,
+        isInPlace
+      });
+    });
 
-  let popupUrl = '';
-  try {
-    popupUrl = popupWebContents.getURL();
-  } catch (error) {
-    popupUrl = '';
-  }
-
-  if (isTrackedOutlookPopupUrl(popupUrl)) {
-    console.log('[OUTLOOK-POPUP][created]', {
-      url: popupUrl,
-      id: popupId
+    popupWebContents.on('did-finish-load', () => {
+      if (popupWebContents.isDestroyed()) return;
+      logPrimaryFlow('popup-did-finish-load', {
+        id: popupWebContents.id,
+        url: popupWebContents.getURL(),
+        title: popupWebContents.getTitle()
+      });
     });
   }
-
-  popupWebContents.on('did-start-navigation', (event, url, isInPlace, isMainFrame) => {
-    if (!isMainFrame || !isTrackedOutlookPopupUrl(url)) return;
-
-    console.log('[OUTLOOK-POPUP][did-start-navigation]', {
-      id: popupId,
-      url,
-      isInPlace
-    });
-  });
-
-  popupWebContents.on('did-redirect-navigation', (event, url, isInPlace, isMainFrame) => {
-    if (!isMainFrame || !isTrackedOutlookPopupUrl(url)) return;
-
-    console.log('[OUTLOOK-POPUP][did-redirect-navigation]', {
-      id: popupId,
-      url,
-      isInPlace
-    });
-  });
-
-  popupWebContents.on('did-finish-load', () => {
-    const url = safeGetPopupUrl();
-    if (!isTrackedOutlookPopupUrl(url)) return;
-
-    console.log('[OUTLOOK-POPUP][did-finish-load]', {
-      id: popupId,
-      url,
-      title: popupWebContents.isDestroyed() ? '' : popupWebContents.getTitle()
-    });
-  });
-
-  window.on('show', () => {
-    const url = safeGetPopupUrl();
-    if (!isTrackedOutlookPopupUrl(url)) return;
-
-    console.log('[OUTLOOK-POPUP][show]', {
-      id: popupId,
-      url
-    });
-  });
-
-  window.on('hide', () => {
-    const url = safeGetPopupUrl();
-    if (!isTrackedOutlookPopupUrl(url)) return;
-
-    console.log('[OUTLOOK-POPUP][hide]', {
-      id: popupId,
-      url
-    });
-  });
 
   window.once('closed', () => {
-    const url = safeGetPopupUrl();
-
-    if (isTrackedOutlookPopupUrl(url)) {
-      console.log('[OUTLOOK-POPUP][closed]', {
-        id: popupId,
-        url
-      });
-    }
     popupWindows.delete(window);
   });
 }
@@ -401,6 +425,115 @@ function trackPopupWindow(window) {
 function getEffectiveUserAgent() {
   const configuredUserAgent = configManager.getUserAgent().trim();
   return configuredUserAgent || FIREFOX_USER_AGENT;
+}
+
+function sanitizeRestorableUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return rawUrl;
+
+  try {
+    const parsedUrl = new URL(rawUrl);
+    const lowerHost = parsedUrl.hostname.toLowerCase();
+
+    const transientParams = [
+      'ct',
+      'client-request-id',
+      'wdPreviousSession',
+      'wdPreviousSessionSrc',
+      'wdorigin',
+      'sessionid',
+      'cidtoken'
+    ];
+
+    transientParams.forEach((param) => {
+      parsedUrl.searchParams.delete(param);
+    });
+
+    if (
+      lowerHost.includes('onedrive.live.com') ||
+      lowerHost.includes('sharepoint.com') ||
+      lowerHost.includes('officeapps.live.com') ||
+      lowerHost.includes('word.cloud.microsoft') ||
+      lowerHost.includes('excel.cloud.microsoft') ||
+      lowerHost.includes('powerpoint.cloud.microsoft')
+    ) {
+      return parsedUrl.toString();
+    }
+
+    return rawUrl;
+  } catch (error) {
+    return rawUrl;
+  }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function persistRestorableTabs() {
+  if (!configManager.getReopenTabsOnLaunch()) {
+    configManager.saveTabs([]);
+    configManager.setActiveTabId(null);
+    return;
+  }
+
+  const restorableTabs = tabManager.tabs
+    .filter((tab) => !tab.isPrimary)
+    .map((tab) => ({
+      url: sanitizeRestorableUrl(
+        tab.restorableUrl ||
+        ((tab.view && !tab.view.webContents.isDestroyed() && tab.view.webContents.getURL()) || tab.url)
+      ),
+      partition: tab.partition || APP_SESSION_PARTITION,
+      appId: tab.appId || null,
+      title: tab.title || '',
+      fullTitle: tab.fullTitle || tab.title || ''
+    }))
+    .filter((tab) => tab.url && tab.url !== 'about:blank');
+
+  configManager.saveTabs(restorableTabs);
+  configManager.setActiveTabId(null);
+}
+
+async function restoreSavedTabsAfterPrimaryLoad(primaryTab, savedTabs) {
+  if (!savedTabs.length) {
+    persistRestorableTabs();
+    return;
+  }
+
+  const primaryWebContents = primaryTab?.view?.webContents;
+  if (!primaryWebContents || primaryWebContents.isDestroyed()) return;
+
+  const runRestoreQueue = async () => {
+    let isFirstTab = true;
+
+    for (const savedTab of savedTabs) {
+      if (!savedTab || !savedTab.url) continue;
+
+      if (!isFirstTab) {
+        await delay(1300);
+      }
+
+      createTab({
+        url: savedTab.url,
+        partition: savedTab.partition || APP_SESSION_PARTITION,
+        appId: savedTab.appId || null,
+        restoredAtStartup: true
+      }, false);
+
+      isFirstTab = false;
+    }
+  };
+
+  if (!primaryWebContents.isLoadingMainFrame()) {
+    await runRestoreQueue();
+    return;
+  }
+
+  primaryWebContents.once('did-finish-load', () => {
+    runRestoreQueue().catch((error) => {
+      console.error('No se pudieron restaurar algunas pestañas al iniciar:', error);
+    });
+  });
 }
 
 // Objeto para administrar las pestañas
@@ -418,10 +551,7 @@ let tabManager = {
   },
   // No guardar pestañas entre sesiones
   saveTabs: function() {
-    // Intencionalmente vacío - no guardamos las pestañas
-    // Siempre queremos empezar con una pestaña limpia
-    configManager.saveTabs([]);
-    configManager.setActiveTabId(null);
+    persistRestorableTabs();
   }
 };
 
@@ -466,17 +596,16 @@ function createMainWindow() {
     mainWindow.maximize();
     mainWindow.show();
 
-    // IMPORTANTE: Limpiar el almacenamiento de pestañas anteriores
     tabManager.tabs = [];
     tabManager.activeTabId = null;
     tabManager.nextTabId = 1;
-    configManager.saveTabs([]);
-    configManager.setActiveTabId(null);
-    // console.log("Limpiando todas las pestañas anteriores");
     const mainUrl = configManager.getMainUrl();
+    const reopenTabsOnLaunch = configManager.getReopenTabsOnLaunch();
+    const savedTabs = reopenTabsOnLaunch ? configManager.getTabs() : [];
+
     setTimeout(() => {
-      // console.log("Creando pestaña inicial limpia");
-      createTab(mainUrl, true);
+      const primaryTab = createTab({ url: mainUrl, isPrimary: true }, true);
+      restoreSavedTabsAfterPrimaryLoad(primaryTab, savedTabs);
     }, 100);
   });
 
@@ -513,22 +642,11 @@ function createMainWindow() {
   
   // Abrir links externos en el navegador predeterminado
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    console.log('[POPUP][MainWindow] Intentando abrir:', url); // <-- Agrega esto
-    if (isTrackedOneDriveUrl(url)) {
-      logOneDriveTrace('main-window-open', { url });
-    }
-
     if (!url || url === 'about:blank') {
       return { action: 'deny' };
     }
 
     if (isOfficeAppLaunchUrl(url)) {
-      if (isTrackedOneDriveUrl(url)) {
-        logOneDriveTrace('main-window-open-internal-tab', {
-          sourceUrl: url,
-          normalizedUrl: normalizeInternalAppUrl(url)
-        });
-      }
       createTab(normalizeInternalAppUrl(url), true);
       return { action: 'deny' };
     }
@@ -559,6 +677,7 @@ function createBrowserView(options = {}) {
   const userAgent = getEffectiveUserAgent();
   const appId = options.appId || null;
   const partition = options.partition || APP_SESSION_PARTITION;
+  const isPrimary = Boolean(options.isPrimary);
   
   const view = new BrowserView({
     webPreferences: {
@@ -590,40 +709,6 @@ function createBrowserView(options = {}) {
       event.preventDefault();
       view.webContents.cut();
     }
-  });
-
-  const logOneDriveFlow = (label, url, extra = null) => {
-    if (!isTrackedOneDriveUrl(url)) return;
-
-    const payload = {
-      appId,
-      partition,
-      url
-    };
-
-    if (extra) {
-      Object.assign(payload, extra);
-    }
-
-    logOneDriveTrace(label, payload);
-  };
-
-  view.webContents.on('did-start-navigation', (event, navigationUrl, isInPlace, isMainFrame) => {
-    if (isMainFrame) {
-      logOneDriveFlow('did-start-navigation', navigationUrl, { isInPlace });
-    }
-  });
-
-  view.webContents.on('did-redirect-navigation', (event, navigationUrl, isInPlace, isMainFrame) => {
-    if (isMainFrame) {
-      logOneDriveFlow('did-redirect-navigation', navigationUrl, { isInPlace });
-    }
-  });
-
-  view.webContents.on('did-finish-load', () => {
-    logOneDriveFlow('did-finish-load', view.webContents.getURL(), {
-      title: view.webContents.getTitle()
-    });
   });
   
   // Configurar menú contextual mejorado para enlaces
@@ -741,24 +826,47 @@ function createBrowserView(options = {}) {
   });
 
   view.webContents.setWindowOpenHandler(({ url, features, disposition }) => {
-    console.log('[POPUP][BrowserView] Intentando abrir:', url);
-    if (isTrackedOneDriveUrl(url)) {
-      logOneDriveFlow('window-open', url);
-    }
-
     const openerUrl = view.webContents.getURL();
 
+    if (isPrimary) {
+      logPrimaryFlow('window-open', {
+        url,
+        openerUrl,
+        disposition,
+        features,
+        isOfficeAppLaunch: isOfficeAppLaunchUrl(url),
+        isOfficeDocument: isOfficeDocumentUrl(url),
+        allowNativePopup: shouldAllowNativePopup(url),
+        allowOutlookPopup: shouldAllowNativeOutlookPopup(url, openerUrl, features, disposition),
+        shouldOpenInternal: shouldOpenInternally(url)
+      });
+    }
+
     if (shouldAllowNativeOutlookPopup(url, openerUrl, features, disposition)) {
+      if (isPrimary) {
+        logPrimaryFlow('window-open-result', {
+          url,
+          action: 'allow-native-outlook-popup'
+        });
+      }
       return buildInternalPopupOptions(partition);
     }
 
     if (!url || url === 'about:blank') {
+      if (isPrimary) {
+        logPrimaryFlow('window-open-result', {
+          url,
+          action: 'deny-about-blank'
+        });
+      }
       return { action: 'deny' };
     }
 
     if (isOfficeAppLaunchUrl(url)) {
-      if (isTrackedOneDriveUrl(url)) {
-        logOneDriveFlow('window-open-internal-tab', url, {
+      if (isPrimary) {
+        logPrimaryFlow('window-open-result', {
+          url,
+          action: 'create-tab-office-app',
           normalizedUrl: normalizeInternalAppUrl(url)
         });
       }
@@ -767,19 +875,42 @@ function createBrowserView(options = {}) {
     }
 
     if (shouldAllowNativePopup(url)) {
+      if (isPrimary) {
+        logPrimaryFlow('window-open-result', {
+          url,
+          action: 'allow-native-popup'
+        });
+      }
       return buildInternalPopupOptions(partition);
     }
 
     if (shouldOpenInternally(url)) {
+      if (isPrimary) {
+        logPrimaryFlow('window-open-result', {
+          url,
+          action: 'create-tab-internal'
+        });
+      }
       createTab({ url, partition, appId }, true);
       return { action: 'deny' };
     }
 
+    if (isPrimary) {
+      logPrimaryFlow('window-open-result', {
+        url,
+        action: 'open-external'
+      });
+    }
     shell.openExternal(url);
     return { action: 'deny' };
   });
 
   view.webContents.on('did-create-window', (window) => {
+    if (isPrimary) {
+      logPrimaryFlow('did-create-window', {
+        id: window && window.webContents ? window.webContents.id : null
+      });
+    }
     trackPopupWindow(window);
   });
   
@@ -835,6 +966,8 @@ function createTab(urlOrConfig, makeActive = false) {
   const url = normalizeInternalAppUrl(tabConfig.url);
   const appId = tabConfig.appId || null;
   const partition = tabConfig.partition || APP_SESSION_PARTITION;
+  const isPrimary = Boolean(tabConfig.isPrimary);
+  const restoredAtStartup = Boolean(tabConfig.restoredAtStartup);
 
   // Evitar crear pestañas para about:blank
   if (url === 'about:blank') {
@@ -843,22 +976,7 @@ function createTab(urlOrConfig, makeActive = false) {
 
   // console.log(`Creando nueva pestaña con URL: ${url}, makeActive: ${makeActive}`);
   
-  const view = createBrowserView({ partition, appId });
-  const logOneDriveTabFlow = (label, navigationUrl, extra = null) => {
-    if (!isTrackedOneDriveUrl(navigationUrl)) return;
-
-    const payload = {
-      appId,
-      partition,
-      url: navigationUrl
-    };
-
-    if (extra) {
-      Object.assign(payload, extra);
-    }
-
-    logOneDriveTrace(label, payload);
-  };
+  const view = createBrowserView({ partition, appId, isPrimary });
 
   let bounds = mainWindow.getContentBounds();
   const tabBarHeight = 32; // Altura de la barra de pesta\u00f1as (32px)
@@ -877,13 +995,20 @@ function createTab(urlOrConfig, makeActive = false) {
     id: tabId, 
     view, 
     url, 
+    restorableUrl: sanitizeRestorableUrl(url),
     title: url,
+    fullTitle: url,
     partition,
-    appId
+    appId,
+    isPrimary
   };
   
   // Añadir a la lista de pestañas
-  tabManager.tabs.push(tab);
+  if (isPrimary) {
+    tabManager.tabs.unshift(tab);
+  } else {
+    tabManager.tabs.push(tab);
+  }
   
   // Si es la pestaña activa, ponerla en primer plano inmediatamente
   if (makeActive) {
@@ -893,9 +1018,35 @@ function createTab(urlOrConfig, makeActive = false) {
   
   // Cargar la URL
   view.webContents.loadURL(url);
+
+  const updateTabUrl = (nextUrl) => {
+    if (!nextUrl || nextUrl === 'about:blank') return;
+    const sanitizedUrl = sanitizeRestorableUrl(nextUrl);
+    tab.url = sanitizedUrl;
+
+    if (isOfficeDocumentUrl(nextUrl)) {
+      tab.restorableUrl = sanitizedUrl;
+      return;
+    }
+
+    if (!tab.restorableUrl || !isOfficeDocumentUrl(tab.restorableUrl)) {
+      tab.restorableUrl = sanitizedUrl;
+    }
+  };
   
   // Intercepta eventos de navegación
   view.webContents.on('will-navigate', (event, navigationUrl) => {
+    if (isPrimary) {
+      logPrimaryFlow('will-navigate', {
+        currentUrl: view.webContents.getURL(),
+        navigationUrl,
+        isOfficeAppLaunch: isOfficeAppLaunchUrl(navigationUrl),
+        isOfficeDocument: isOfficeDocumentUrl(navigationUrl),
+        shouldOpenInternal: shouldOpenInternally(navigationUrl),
+        allowNativePopup: shouldAllowNativePopup(navigationUrl)
+      });
+    }
+
     if (navigationUrl === 'about:blank') {
       event.preventDefault();
       return;
@@ -904,8 +1055,10 @@ function createTab(urlOrConfig, makeActive = false) {
     const normalizedNavigationUrl = normalizeInternalAppUrl(navigationUrl);
 
     if (isOfficeAppLaunchUrl(navigationUrl) && normalizedNavigationUrl !== navigationUrl) {
-      if (isTrackedOneDriveUrl(navigationUrl)) {
-        logOneDriveTabFlow('will-navigate-internal-tab', navigationUrl, {
+      if (isPrimary) {
+        logPrimaryFlow('will-navigate-result', {
+          navigationUrl,
+          action: 'create-tab-office-app',
           normalizedUrl: normalizedNavigationUrl
         });
       }
@@ -917,6 +1070,12 @@ function createTab(urlOrConfig, makeActive = false) {
     const currentURL = view.webContents.getURL();
     try {
       if (shouldOpenInternally(currentURL) && !shouldOpenInternally(navigationUrl)) {
+        if (isPrimary) {
+          logPrimaryFlow('will-navigate-result', {
+            navigationUrl,
+            action: 'open-external'
+          });
+        }
         event.preventDefault();
         shell.openExternal(navigationUrl);
         showWebNotification('Abriendo enlace externo en el navegador');
@@ -933,9 +1092,21 @@ function createTab(urlOrConfig, makeActive = false) {
       return;
     }
   });
+
+  view.webContents.on('did-navigate', (event, navigationUrl) => {
+    updateTabUrl(navigationUrl);
+    sendTabsUpdate();
+  });
+
+  view.webContents.on('did-redirect-navigation', (event, navigationUrl, isInPlace, isMainFrame) => {
+    if (!isMainFrame) return;
+    updateTabUrl(navigationUrl);
+    sendTabsUpdate();
+  });
   
   // Interceptamos la actualización del título para mostrar solo la parte anterior al guion (-)
   view.webContents.on('page-title-updated', (event, title) => {
+    tab.fullTitle = title;
     let shortTitle = title.split(' - ')[0];
     tab.title = shortTitle;
     sendTabsUpdate();
@@ -952,6 +1123,16 @@ function createTab(urlOrConfig, makeActive = false) {
       updateActiveTabBounds();
       sendTabsUpdate();
     }
+  });
+
+  view.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame || !restoredAtStartup) return;
+    if (errorCode === -3) return;
+
+    const restoredTab = tabManager.tabs.find((existingTab) => existingTab.id === tabId);
+    if (!restoredTab || restoredTab.isPrimary) return;
+
+    closeTab(tabId);
   });
   
   // No guardamos el estado de pestañas entre sesiones
@@ -993,6 +1174,11 @@ function closeTab(tabId) {
   let index = tabManager.tabs.findIndex(tab => tab.id === tabId);
   if (index !== -1) {
     let tab = tabManager.tabs[index];
+
+    if (tab.isPrimary) {
+      return;
+    }
+
     if (tabManager.activeTabId === tabId) {
       let newIndex = index === 0 ? 1 : index - 1;
       if (tabManager.tabs[newIndex]) {
@@ -1007,7 +1193,7 @@ function closeTab(tabId) {
     // Si no quedan pestañas, crear una nueva
     if (tabManager.tabs.length === 0) {
       const mainUrl = configManager.getMainUrl();
-      createTab(mainUrl, true);
+      createTab({ url: mainUrl, isPrimary: true }, true);
     }
     
     // No guardamos pestañas entre sesiones
@@ -1023,16 +1209,92 @@ function reloadTab(tabId) {
   }
 }
 
+function moveTab(tabId, targetIndex) {
+  const sourceIndex = tabManager.tabs.findIndex((tab) => tab.id === tabId);
+  if (sourceIndex === -1) return false;
+
+  const sourceTab = tabManager.tabs[sourceIndex];
+  if (!sourceTab || sourceTab.isPrimary) return false;
+
+  const minIndex = tabManager.tabs[0] && tabManager.tabs[0].isPrimary ? 1 : 0;
+  const maxIndex = tabManager.tabs.length - 1;
+  let nextIndex = Math.max(minIndex, Math.min(Number(targetIndex), maxIndex));
+
+  if (Number.isNaN(nextIndex) || nextIndex === sourceIndex) {
+    return false;
+  }
+
+  if (sourceIndex < nextIndex) {
+    nextIndex -= 1;
+  }
+
+  if (nextIndex === sourceIndex) {
+    return false;
+  }
+
+  tabManager.tabs.splice(sourceIndex, 1);
+  tabManager.tabs.splice(nextIndex, 0, sourceTab);
+  sendTabsUpdate();
+  return true;
+}
+
+function reorderTabs(orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length !== tabManager.tabs.length) {
+    return false;
+  }
+
+  const tabById = new Map(tabManager.tabs.map((tab) => [tab.id, tab]));
+  const reorderedTabs = orderedIds
+    .map((id) => tabById.get(Number(id)))
+    .filter(Boolean);
+
+  if (reorderedTabs.length !== tabManager.tabs.length) {
+    return false;
+  }
+
+  const primaryIndex = reorderedTabs.findIndex((tab) => tab.isPrimary);
+  if (primaryIndex > 0) {
+    const [primaryTab] = reorderedTabs.splice(primaryIndex, 1);
+    reorderedTabs.unshift(primaryTab);
+  }
+
+  tabManager.tabs = reorderedTabs;
+  sendTabsUpdate();
+  return true;
+}
+
+function detachTabToWindow(tabId) {
+  const index = tabManager.tabs.findIndex((tab) => tab.id === tabId);
+  if (index === -1) return false;
+
+  const tab = tabManager.tabs[index];
+  if (!tab || tab.isPrimary) return false;
+
+  const targetUrl = tab.view?.webContents?.isDestroyed()
+    ? tab.url
+    : (tab.view.webContents.getURL() || tab.url);
+
+  const popupWindow = openManagedPopupWindow(targetUrl, tab.partition || APP_SESSION_PARTITION);
+  if (!popupWindow) return false;
+
+  closeTab(tabId);
+  return true;
+}
+
 // Envía al renderer la información actualizada de las pestañas para actualizar la UI
 function sendTabsUpdate() {
   if (mainWindow) {
     let tabsForUI = tabManager.tabs.map(tab => ({
       id: tab.id,
       title: tab.title,
+      fullTitle: tab.fullTitle || tab.title,
       url: tab.url,
+      isPrimary: Boolean(tab.isPrimary)
     }));
     mainWindow.webContents.send('tabs-updated', { tabs: tabsForUI, activeTabId: tabManager.activeTabId });
   }
+
+  persistRestorableTabs();
 }
 
 // Configuración de los IPC handlers
@@ -1050,6 +1312,18 @@ ipcMain.on('close-tab', (event, tabId) => {
 
 ipcMain.on('reload-tab', (event, tabId) => {
   reloadTab(tabId);
+});
+
+ipcMain.on('move-tab', (event, tabId, targetIndex) => {
+  moveTab(tabId, targetIndex);
+});
+
+ipcMain.on('reorder-tabs', (event, orderedIds) => {
+  reorderTabs(orderedIds);
+});
+
+ipcMain.on('detach-tab-to-window', (event, tabId) => {
+  detachTabToWindow(tabId);
 });
 
 ipcMain.on('window-control', (event, action) => {
@@ -1156,6 +1430,16 @@ ipcMain.handle('set-theme', (event, theme) => {
   return true;
 });
 
+ipcMain.handle('get-reopen-tabs-on-launch', () => {
+  return configManager.getReopenTabsOnLaunch();
+});
+
+ipcMain.handle('set-reopen-tabs-on-launch', (event, enabled) => {
+  configManager.setReopenTabsOnLaunch(enabled);
+  persistRestorableTabs();
+  return true;
+});
+
 // Obtener versión de la aplicación
 ipcMain.handle('get-version', () => {
   return app.getVersion();
@@ -1189,6 +1473,39 @@ function createTray() {
           mainWindow.reload();
         }
       }
+    },
+    {
+      label: 'Aplicaciones',
+      submenu: [
+        {
+          label: 'Word',
+          click: () => openTrayAppWindow('word')
+        },
+        {
+          label: 'Excel',
+          click: () => openTrayAppWindow('excel')
+        },
+        {
+          label: 'PowerPoint',
+          click: () => openTrayAppWindow('powerpoint')
+        },
+        {
+          label: 'Outlook',
+          click: () => openTrayAppWindow('outlook')
+        },
+        {
+          label: 'OneDrive',
+          click: () => openTrayAppWindow('onedrive')
+        },
+        {
+          label: 'Teams',
+          click: () => openTrayAppWindow('teams')
+        },
+        {
+          label: 'OneNote',
+          click: () => openTrayAppWindow('onenote')
+        }
+      ]
     },
     { type: 'separator' },
     {
@@ -1297,24 +1614,12 @@ if (!gotTheLock) {
     appSession.webRequest.onBeforeRequest({
       urls: ['*://*/*']
     }, (details, callback) => {
-      if (details.resourceType === 'mainFrame' && isTrackedOneDriveUrl(details.url)) {
-        logOneDriveTrace('on-before-request', {
-          url: details.url,
-          resourceType: details.resourceType,
-          method: details.method,
-          webContentsId: details.webContentsId
-        });
-      }
-
       // Solo procesar solicitudes iniciadas por usuario (clic en enlace)
       if (details.resourceType === 'mainFrame' && details.method === 'GET') {
         const url = details.url;
         
         // Verificar si el enlace debe abrirse internamente o externamente
         if (!shouldOpenInternally(url)) {
-          if (isTrackedOneDriveUrl(url)) {
-            logOneDriveTrace('on-before-request-external', { url });
-          }
           // Cancelar la solicitud y abrir externamente
           shell.openExternal(url);
           callback({ cancel: true });

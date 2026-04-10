@@ -5,6 +5,7 @@
 
 // Elementos del DOM
 const tabsContainer = document.getElementById('tabs');
+const tabsArea = document.getElementById('tabs-area');
 const newTabBtn = document.getElementById('new-tab-btn');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal-overlay');
@@ -20,7 +21,12 @@ const mainUrlPresetSelect = document.getElementById('main-url-preset');
 const mainUrlInput = document.getElementById('main-url');
 const userAgentInput = document.getElementById('user-agent');
 const themeSelect = document.getElementById('theme-select');
+const reopenTabsOnLaunchInput = document.getElementById('reopen-tabs-on-launch');
 const notificationContainer = document.getElementById('notification-container');
+let currentTabsData = [];
+let currentActiveTabId = null;
+let tabDragState = null;
+let suppressClickTabId = null;
 
 const MAIN_URL_PRESETS = {
   corporate: 'https://www.microsoft365.com/?auth=2',
@@ -133,17 +139,19 @@ async function loadSettings() {
   const mainUrl = await window.electronAPI.getMainUrl();
   const userAgent = await window.electronAPI.getUserAgent();
   const theme = await window.electronAPI.getTheme();
+  const reopenTabsOnLaunch = await window.electronAPI.getReopenTabsOnLaunch();
   
   // Actualizar campos
   mainUrlInput.value = mainUrl;
   syncMainUrlPreset(mainUrl);
   userAgentInput.value = userAgent;
   themeSelect.value = theme;
+  reopenTabsOnLaunchInput.checked = reopenTabsOnLaunch;
   
   // Aplicar tema
   applyTheme(theme);
   
-  return { mainUrl, userAgent, theme };
+  return { mainUrl, userAgent, theme, reopenTabsOnLaunch };
 }
 
 // Guardar configuración
@@ -151,6 +159,7 @@ async function saveSettings() {
   const mainUrl = mainUrlInput.value.trim();
   const userAgent = userAgentInput.value.trim();
   const theme = themeSelect.value;
+  const reopenTabsOnLaunch = reopenTabsOnLaunchInput.checked;
   
   if (!mainUrl) {
     showNotification('Debe ingresar una URL principal válida', 'error');
@@ -165,6 +174,7 @@ async function saveSettings() {
     await window.electronAPI.setMainUrl(mainUrl);
     await window.electronAPI.setUserAgent(userAgent);
     await window.electronAPI.setTheme(theme);
+    await window.electronAPI.setReopenTabsOnLaunch(reopenTabsOnLaunch);
     
     // Aplicar tema 
     applyTheme(theme);
@@ -305,18 +315,28 @@ async function toggleAppLauncher() {
   }
 }
 
+async function toggleSettingsModal() {
+  if (settingsModal.classList.contains('visible')) {
+    closeSettingsModal();
+  } else {
+    await openSettingsModal();
+  }
+}
+
 // Crear elemento para una pestaña
-function createTabElement(tab, isActive) {
+function createTabElement(tab, isActive, index) {
   const tabElement = document.createElement('div');
   tabElement.className = 'tab';
+  tabElement.dataset.tabId = String(tab.id);
   if (isActive) tabElement.classList.add('active');
+  if (tab.isPrimary) tabElement.classList.add('primary');
   
   // Detectar si es una pestaña de Copilot
   const isCopilot = tab.url.includes('m365.cloud.microsoft') || 
                    tab.url.includes('copilot') || 
                    tab.title.toLowerCase().includes('copilot');
   
-  if (isCopilot) {
+  if (isCopilot && !tab.isPrimary) {
     tabElement.classList.add('copilot');
   }
   
@@ -325,14 +345,14 @@ function createTabElement(tab, isActive) {
   tabIcon.className = 'tab-icon';
   
   // Obtener ruta del ícono basado en URL/título
-  const iconPath = getTabIconPath(tab.url, tab.title);
+  const iconPath = getTabIconPath(tab.url, tab.fullTitle || tab.title);
   
   // Si tenemos un ícono en la carpeta icons, usarlo
   if (iconPath) {
     tabIcon.innerHTML = `<img src="${iconPath}" alt="" width="16" height="16">`;
   } else {
     // Fallback a ícono de Material Symbols
-    const iconSymbol = getTabIconSymbol(tab.url, tab.title);
+    const iconSymbol = getTabIconSymbol(tab.url, tab.fullTitle || tab.title);
     tabIcon.innerHTML = `<span class="material-symbols-rounded">${iconSymbol}</span>`;
   }
   
@@ -367,7 +387,9 @@ function createTabElement(tab, isActive) {
   
   // Añadir elementos a la pestaña
   tabActions.appendChild(reloadBtn);
-  tabActions.appendChild(closeBtn);
+  if (!tab.isPrimary) {
+    tabActions.appendChild(closeBtn);
+  }
   
   tabElement.appendChild(tabIcon);
   tabElement.appendChild(tabTitle);
@@ -375,8 +397,20 @@ function createTabElement(tab, isActive) {
   
   // Al hacer clic, cambia a esa pestaña
   tabElement.addEventListener('click', () => {
+    if (suppressClickTabId === tab.id) {
+      suppressClickTabId = null;
+      return;
+    }
     window.electronAPI.switchTab(tab.id);
   });
+
+  if (!tab.isPrimary) {
+    tabElement.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      if (event.target.closest('.tab-actions')) return;
+      startTabPointerDrag(event, tabElement, tab);
+    });
+  }
   
   return tabElement;
 }
@@ -398,20 +432,34 @@ function getTabIconPath(url, title) {
     );
   }
 
+  function hasFileHint(extensions) {
+    return extensions.some((extension) =>
+      lowerUrl.includes(`ithint=file%2c${extension}`) ||
+      lowerUrl.includes(`ithint=file,${extension}`) ||
+      lowerUrl.includes(`filetype=${extension}`) ||
+      lowerUrl.includes(`.${extension}&`) ||
+      lowerUrl.endsWith(`.${extension}`)
+    );
+  }
+
   // Priorizar detección por título y extensión del archivo
   const isWordFile = hasFileExtension('.doc') || hasFileExtension('.docx') ||
+    hasFileHint(['doc', 'docx', 'dot', 'dotx']) ||
     hasOfficePattern(['word', 'document', 'word-edit', 'word-view', 'word-online', '/:w:/', 'app=word']) ||
     (lowerUrl.includes('/_layouts/15/wopiframe.aspx') && lowerUrl.includes('doc'));
 
   const isExcelFile = hasFileExtension('.xls') || hasFileExtension('.xlsx') || hasFileExtension('.xlsm') ||
+    hasFileHint(['xls', 'xlsx', 'xlsm', 'xltx', 'csv']) ||
     hasOfficePattern(['excel', 'spreadsheet', 'workbook', 'excel-edit', 'excel-view', 'excel-online', '/:x:/', 'app=excel', 'xlviewer.aspx']) ||
     (lowerUrl.includes('/_layouts/15/wopiframe.aspx') && lowerUrl.includes('xls'));
 
   const isPowerPointFile = hasFileExtension('.ppt') || hasFileExtension('.pptx') ||
+    hasFileHint(['ppt', 'pptx', 'pot', 'potx']) ||
     hasOfficePattern(['powerpoint', 'presentation', 'powerpoint-edit', 'powerpoint-view', 'powerpoint-online', '/:p:/', 'app=powerpoint']) ||
     (lowerUrl.includes('/_layouts/15/wopiframe.aspx') && lowerUrl.includes('ppt'));
 
   const isOneNoteFile = hasFileExtension('.one') ||
+    hasFileHint(['one']) ||
     hasOfficePattern(['onenote', 'bloc de notas', 'onenote-online', '/:o:/', 'app=onenote']);
 
   // Servicios específicos (solo si no son archivos de Office)
@@ -529,15 +577,297 @@ function getTabIconSymbol(url, title) {
 
 // Actualizar la UI de pestañas cuando cambian
 function updateTabsUI(data) {
+  if (tabDragState && tabDragState.active) {
+    currentTabsData = data.tabs;
+    currentActiveTabId = data.activeTabId;
+    return;
+  }
+
+  currentTabsData = data.tabs;
+  currentActiveTabId = data.activeTabId;
+
   // Limpiar contenedor
   tabsContainer.innerHTML = '';
   
   // Renderizar cada pestaña
-  data.tabs.forEach(tab => {
+  data.tabs.forEach((tab, index) => {
     const isActive = tab.id === data.activeTabId;
-    const tabElement = createTabElement(tab, isActive);
+    const tabElement = createTabElement(tab, isActive, index);
     tabsContainer.appendChild(tabElement);
   });
+}
+
+function animateTabMutation(mutator) {
+  const trackedElements = Array.from(tabsContainer.querySelectorAll('.tab'));
+  const previousRects = new Map(
+    trackedElements.map((element) => [element, element.getBoundingClientRect()])
+  );
+
+  mutator();
+
+  const nextElements = Array.from(tabsContainer.querySelectorAll('.tab'));
+  nextElements.forEach((element) => {
+    const previousRect = previousRects.get(element);
+    if (!previousRect) return;
+
+    const nextRect = element.getBoundingClientRect();
+    const deltaX = previousRect.left - nextRect.left;
+
+    if (!deltaX) return;
+
+    element.style.transition = 'none';
+    element.style.transform = `translateX(${deltaX}px)`;
+
+    requestAnimationFrame(() => {
+      element.style.transition = '';
+      element.style.transform = '';
+    });
+  });
+}
+
+function getTabOrderFromDom(draggedTabElement = null, placeholderElement = null) {
+  return Array.from(tabsContainer.querySelectorAll('.tab'))
+    .map((element) => {
+      if (placeholderElement && element === placeholderElement) {
+        return draggedTabElement;
+      }
+      return element;
+    })
+    .filter(Boolean)
+    .map((element) => Number(element.dataset.tabId));
+}
+
+function copyComputedStyles(sourceElement, targetElement) {
+  const computedStyle = window.getComputedStyle(sourceElement);
+
+  for (const propertyName of computedStyle) {
+    targetElement.style.setProperty(
+      propertyName,
+      computedStyle.getPropertyValue(propertyName),
+      computedStyle.getPropertyPriority(propertyName)
+    );
+  }
+
+  const sourceChildren = Array.from(sourceElement.children);
+  const targetChildren = Array.from(targetElement.children);
+
+  sourceChildren.forEach((sourceChild, index) => {
+    const targetChild = targetChildren[index];
+    if (!targetChild) return;
+    copyComputedStyles(sourceChild, targetChild);
+  });
+}
+
+function createFloatingTabClone(tabElement, rect) {
+  const floatingTabElement = tabElement.cloneNode(true);
+  copyComputedStyles(tabElement, floatingTabElement);
+
+  floatingTabElement.classList.add('tab-floating', 'dragging');
+  floatingTabElement.style.position = 'fixed';
+  floatingTabElement.style.left = `${rect.left}px`;
+  floatingTabElement.style.top = `${rect.top}px`;
+  floatingTabElement.style.width = `${rect.width}px`;
+  floatingTabElement.style.minWidth = `${rect.width}px`;
+  floatingTabElement.style.maxWidth = `${rect.width}px`;
+  floatingTabElement.style.height = `${rect.height}px`;
+  floatingTabElement.style.margin = '0';
+  floatingTabElement.style.pointerEvents = 'none';
+  floatingTabElement.style.transform = 'none';
+  floatingTabElement.style.opacity = '1';
+  floatingTabElement.style.zIndex = '1200';
+
+  const actions = floatingTabElement.querySelector('.tab-actions');
+  const sourceActions = tabElement.querySelector('.tab-actions');
+  if (actions && sourceActions) {
+    actions.style.opacity = window.getComputedStyle(sourceActions).opacity;
+  }
+
+  return floatingTabElement;
+}
+
+function updatePlaceholderPosition(pointerClientX) {
+  if (!tabDragState || !tabDragState.active) return;
+
+  const { placeholderElement, draggedTabElement } = tabDragState;
+  const movableTabs = Array.from(
+    tabsContainer.querySelectorAll('.tab:not(.primary):not(.tab-placeholder)')
+  );
+
+  const targetTab = movableTabs.find((element) => {
+    const rect = element.getBoundingClientRect();
+    return pointerClientX < rect.left + rect.width / 2;
+  });
+
+  animateTabMutation(() => {
+    if (targetTab) {
+      tabsContainer.insertBefore(placeholderElement, targetTab);
+    } else {
+      tabsContainer.appendChild(placeholderElement);
+    }
+  });
+
+  tabsContainer.classList.toggle(
+    'drop-at-end',
+    placeholderElement === tabsContainer.lastElementChild
+  );
+  newTabBtn.classList.toggle(
+    'drop-at-end',
+    placeholderElement === tabsContainer.lastElementChild
+  );
+}
+
+function isPointerInsideTabsArea(clientX, clientY) {
+  const rect = tabsArea.getBoundingClientRect();
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
+}
+
+function finishTabPointerDrag(commitReorder, detachToWindow = false) {
+  if (!tabDragState) return;
+
+  const {
+    active,
+    tabId,
+    draggedTabElement,
+    floatingTabElement,
+    placeholderElement,
+    handlePointerMove,
+    handlePointerUp
+  } = tabDragState;
+
+  document.removeEventListener('pointermove', handlePointerMove);
+  document.removeEventListener('pointerup', handlePointerUp);
+  document.body.classList.remove('tab-drag-active');
+  tabsContainer.classList.remove('drop-at-end');
+  newTabBtn.classList.remove('drop-at-end');
+
+  if (active) {
+    const orderedIds = getTabOrderFromDom(draggedTabElement, placeholderElement);
+
+    if (floatingTabElement) {
+      floatingTabElement.remove();
+    }
+    if (placeholderElement) {
+      placeholderElement.remove();
+    }
+
+    suppressClickTabId = tabId;
+    const reorderedTabs = orderedIds
+      .map((id) => currentTabsData.find((tab) => tab.id === id))
+      .filter(Boolean);
+    const optimisticData = {
+      tabs: reorderedTabs.length === currentTabsData.length ? reorderedTabs : currentTabsData,
+      activeTabId: currentActiveTabId
+    };
+
+    if (detachToWindow) {
+      tabDragState = null;
+      updateTabsUI({ tabs: currentTabsData, activeTabId: currentActiveTabId });
+      window.electronAPI.detachTabToWindow(tabId);
+    } else if (commitReorder) {
+      const currentIds = currentTabsData.map((tab) => tab.id);
+      const hasChanged = orderedIds.some((id, index) => id !== currentIds[index]);
+      if (hasChanged) {
+        tabDragState = null;
+        updateTabsUI(optimisticData);
+        window.electronAPI.reorderTabs(orderedIds);
+      } else {
+        tabDragState = null;
+        updateTabsUI({ tabs: currentTabsData, activeTabId: currentActiveTabId });
+      }
+    } else {
+      tabDragState = null;
+      updateTabsUI({ tabs: currentTabsData, activeTabId: currentActiveTabId });
+    }
+  }
+}
+
+function activateTabPointerDrag() {
+  if (!tabDragState || tabDragState.active) return;
+
+  const {
+    draggedTabElement,
+    pointerOffsetX,
+    pointerOffsetY,
+    startClientX,
+    startClientY
+  } = tabDragState;
+
+  const rect = draggedTabElement.getBoundingClientRect();
+  const placeholderElement = document.createElement('div');
+  placeholderElement.className = 'tab tab-placeholder';
+  placeholderElement.style.width = `${rect.width}px`;
+  placeholderElement.style.minWidth = `${rect.width}px`;
+  placeholderElement.style.maxWidth = `${rect.width}px`;
+  placeholderElement.style.height = `${rect.height}px`;
+
+  animateTabMutation(() => {
+    draggedTabElement.replaceWith(placeholderElement);
+  });
+
+  const floatingTabElement = createFloatingTabClone(draggedTabElement, rect);
+
+  document.body.appendChild(floatingTabElement);
+  document.body.classList.add('tab-drag-active');
+
+  tabDragState.active = true;
+  tabDragState.placeholderElement = placeholderElement;
+  tabDragState.floatingTabElement = floatingTabElement;
+
+  updatePlaceholderPosition(startClientX);
+
+  floatingTabElement.style.left = `${startClientX - pointerOffsetX}px`;
+  floatingTabElement.style.top = `${startClientY - pointerOffsetY}px`;
+}
+
+function startTabPointerDrag(event, tabElement, tab) {
+  event.preventDefault();
+
+  const startClientX = event.clientX;
+  const startClientY = event.clientY;
+  const rect = tabElement.getBoundingClientRect();
+
+  const handlePointerMove = (moveEvent) => {
+    if (!tabDragState) return;
+
+    const deltaX = moveEvent.clientX - startClientX;
+    const deltaY = moveEvent.clientY - startClientY;
+
+    if (!tabDragState.active) {
+      if (Math.abs(deltaX) < 4 && Math.abs(deltaY) < 4) return;
+      activateTabPointerDrag();
+    }
+
+    tabDragState.floatingTabElement.style.left = `${moveEvent.clientX - tabDragState.pointerOffsetX}px`;
+    tabDragState.floatingTabElement.style.top = `${moveEvent.clientY - tabDragState.pointerOffsetY}px`;
+    updatePlaceholderPosition(moveEvent.clientX);
+  };
+
+  const handlePointerUp = (upEvent) => {
+    const shouldDetach = tabDragState?.active && !isPointerInsideTabsArea(upEvent.clientX, upEvent.clientY);
+    finishTabPointerDrag(true, shouldDetach);
+  };
+
+  tabDragState = {
+    tabId: tab.id,
+    draggedTabElement: tabElement,
+    pointerOffsetX: event.clientX - rect.left,
+    pointerOffsetY: event.clientY - rect.top,
+    startClientX,
+    startClientY,
+    active: false,
+    floatingTabElement: null,
+    placeholderElement: null,
+    handlePointerMove,
+    handlePointerUp
+  };
+
+  document.addEventListener('pointermove', handlePointerMove);
+  document.addEventListener('pointerup', handlePointerUp, { once: true });
 }
 
 // Manejar notificaciones desde el proceso principal
@@ -597,10 +927,10 @@ async function initApp() {
   window.electronAPI.onTabsUpdated((data) => {
     updateTabsUI(data);
   });
-  
+
   // Eventos para modal de configuración
   settingsBtn.addEventListener('click', async () => {
-    await openSettingsModal();
+    await toggleSettingsModal();
   });
 
   mainUrlPresetSelect.addEventListener('change', () => {
@@ -633,15 +963,15 @@ async function initApp() {
     }
   });
   
-  // Cerrar modal al hacer clic fuera
-  settingsModal.addEventListener('click', (e) => {
-    if (e.target === settingsModal) {
+  // Cerrar paneles al hacer clic fuera del contenido
+  settingsModal.addEventListener('click', (event) => {
+    if (!event.target.closest('.settings-modal')) {
       closeSettingsModal();
     }
   });
   
   appLauncherOverlay.addEventListener('click', (event) => {
-    if (event.target === appLauncherOverlay) {
+    if (!event.target.closest('#app-launcher-panel')) {
       closeAppLauncher();
     }
   });
