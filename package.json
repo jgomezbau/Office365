@@ -22,10 +22,7 @@
     },
     "files": [
       "main.js",
-      "preload.js",
-      "modal-preload.js",
       "src/**/*",
-      "icons/**/*",
       "config.xml"
     ],
     "linux": {

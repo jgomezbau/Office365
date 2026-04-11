@@ -162,19 +162,31 @@ Los artefactos se escriben en `dist/`.
 ```text
 O365LinuxDesktop/
 ├── main.js
-├── preload.js
-├── modal-preload.js
 ├── package.json
-├── icons/
+├── build/
+│   └── icons/
 ├── src/
-│   ├── index.html
-│   ├── renderer.js
-│   ├── styles.css
-│   ├── modal.html
-│   ├── modal.js
-│   ├── modal.css
+│   ├── assets/
+│   │   └── icons/
 │   ├── config/
 │   │   └── configManager.js
+│   ├── main/
+│   │   ├── appSession.js
+│   │   ├── floatingModal.js
+│   │   └── windowState.js
+│   ├── preload/
+│   │   ├── main-preload.js
+│   │   └── modal-preload.js
+│   ├── ui/
+│   │   ├── main-window/
+│   │   │   ├── index.html
+│   │   │   └── renderer.js
+│   │   ├── modal/
+│   │   │   ├── index.html
+│   │   │   ├── modal.css
+│   │   │   └── modal.js
+│   │   └── shared/
+│   │       └── styles.css
 │   └── utils/
 │       ├── nativeAppHandler.js
 │       └── urlHandler.js

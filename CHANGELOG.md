@@ -2,6 +2,18 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [Unreleased] - 2026-04-11
+
+### Changed
+- Refactorización acotada de `main.js` para reforzar su papel de entrada y composición, moviendo la gestión de sesión, estado de ventana principal y ciclo de vida del modal flotante a módulos dedicados en `src/main/`.
+- Reorganización de la UI bajo `src/ui/`, separando claramente la ventana principal (`src/ui/main-window/`), el modal flotante (`src/ui/modal/`) y los estilos compartidos (`src/ui/shared/`).
+- Consolidación de los preload scripts bajo `src/preload/`, incluyendo el traslado de `modal-preload.js` y del preload principal a rutas más coherentes con su responsabilidad.
+- Reubicación de los iconos de runtime a `src/assets/icons/`, manteniendo `build/icons/` exclusivamente para los recursos de empaquetado.
+- Actualización de rutas de carga, referencias internas y documentación para alinearlas con la nueva estructura del proyecto.
+
+### Maintenance
+- Simplificación adicional de la raíz del repositorio para que `src/` concentre el código y assets de ejecución, dejando una estructura más clara y fácil de mantener.
+
 ## [2.6.1] - 2026-04-10
 
 ### Added

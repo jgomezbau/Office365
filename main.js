@@ -1,6 +1,9 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, shell, clipboard, Tray, desktopCapturer, screen, nativeImage } = require('electron');
 const path = require('path');
 const configManager = require('./src/config/configManager');
+const { configureAppSession } = require('./src/main/appSession');
+const { createFloatingModalController } = require('./src/main/floatingModal');
+const { createMainWindowStateManager } = require('./src/main/windowState');
 const { shouldOpenInternally } = require('./src/utils/urlHandler');
 const { getAvailableAppsForFile, downloadAndOpenWithApp, detectFileType } = require('./src/utils/nativeAppHandler');
 
@@ -14,19 +17,25 @@ let tray = null; // Variable para mantener la referencia al Tray
 const popupWindows = new Set();
 let tabDragGhostWindow = null;
 let tabDragGhostFollowInterval = null;
-let floatingModalWindow = null;
-let floatingModalState = null;
-let floatingModalLoaded = false;
 let activeMainContentView = null;
-let saveWindowStateTimeout = null;
 
 const TAB_DRAG_GHOST_WIDTH = 320;
 const TAB_DRAG_GHOST_HEIGHT = 188;
 const TAB_DRAG_GHOST_OFFSET_X = 18;
 const TAB_DRAG_GHOST_OFFSET_Y = 16;
-const TAB_INFO_MODAL_WIDTH = 340;
-const TAB_INFO_MODAL_HEIGHT = 248;
-const TAB_INFO_MODAL_MARGIN = 12;
+
+const mainWindowState = createMainWindowStateManager({
+  configManager,
+  screen,
+  getMainWindow: () => mainWindow
+});
+
+const floatingModal = createFloatingModalController({
+  BrowserWindow,
+  getMainWindow: () => mainWindow,
+  preloadPath: path.join(__dirname, 'src', 'preload', 'modal-preload.js'),
+  modalHtmlPath: path.join(__dirname, 'src', 'ui', 'modal', 'index.html')
+});
 
 function logPrimaryFlow(label, payload) {
   if (!debugPrimaryFlow) return;
@@ -181,219 +190,6 @@ function hideTabDragGhost() {
   tabDragGhostWindow.hide();
 }
 
-
-function areBoundsVisible(bounds) {
-  if (!bounds) return false;
-
-  const displays = screen.getAllDisplays();
-  return displays.some(({ workArea }) => {
-    const overlapWidth = Math.min(bounds.x + bounds.width, workArea.x + workArea.width) - Math.max(bounds.x, workArea.x);
-    const overlapHeight = Math.min(bounds.y + bounds.height, workArea.y + workArea.height) - Math.max(bounds.y, workArea.y);
-    return overlapWidth >= 120 && overlapHeight >= 120;
-  });
-}
-
-function getValidatedWindowBounds() {
-  const savedBounds = configManager.getWindowBounds();
-  if (
-    savedBounds &&
-    Number.isFinite(savedBounds.x) &&
-    Number.isFinite(savedBounds.y) &&
-    Number.isFinite(savedBounds.width) &&
-    Number.isFinite(savedBounds.height) &&
-    savedBounds.width >= 900 &&
-    savedBounds.height >= 650 &&
-    areBoundsVisible(savedBounds)
-  ) {
-    return savedBounds;
-  }
-
-  const primaryWorkArea = screen.getPrimaryDisplay().workArea;
-  const width = Math.min(1200, primaryWorkArea.width);
-  const height = Math.min(800, primaryWorkArea.height);
-  const x = primaryWorkArea.x + Math.max(0, Math.round((primaryWorkArea.width - width) / 2));
-  const y = primaryWorkArea.y + Math.max(0, Math.round((primaryWorkArea.height - height) / 2));
-
-  return { x, y, width, height };
-}
-
-function persistMainWindowState(immediate = false) {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-
-  const saveState = () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-
-    configManager.setWindowMaximized(mainWindow.isMaximized());
-
-    const bounds = mainWindow.isMaximized()
-      ? mainWindow.getNormalBounds()
-      : mainWindow.getBounds();
-
-    configManager.setWindowBounds(bounds);
-    saveWindowStateTimeout = null;
-  };
-
-  if (saveWindowStateTimeout) {
-    clearTimeout(saveWindowStateTimeout);
-    saveWindowStateTimeout = null;
-  }
-
-  if (immediate) {
-    saveState();
-    return;
-  }
-
-  saveWindowStateTimeout = setTimeout(saveState, 180);
-}
-
-function getFloatingModalWindowBounds(type = floatingModalState?.type, payload = floatingModalState?.payload || {}) {
-  if (!mainWindow || mainWindow.isDestroyed()) return null;
-
-  const mainBounds = mainWindow.getBounds();
-
-  if (type === 'tab-info') {
-    const anchorRect = payload.anchorRect || {};
-    const width = TAB_INFO_MODAL_WIDTH;
-    const height = TAB_INFO_MODAL_HEIGHT;
-    const left = Number(anchorRect.left) || TAB_INFO_MODAL_MARGIN;
-    const bottom = Number(anchorRect.bottom) || 0;
-    const anchorWidth = Number(anchorRect.width) || 0;
-
-    const maxLeft = Math.max(TAB_INFO_MODAL_MARGIN, mainBounds.width - width - TAB_INFO_MODAL_MARGIN);
-    const x = mainBounds.x + Math.round(Math.min(Math.max(left + (anchorWidth / 2) - (width / 2), TAB_INFO_MODAL_MARGIN), maxLeft));
-    const maxTop = Math.max(TAB_INFO_MODAL_MARGIN, mainBounds.height - height - TAB_INFO_MODAL_MARGIN);
-    const y = mainBounds.y + Math.round(Math.min(Math.max(bottom + 10, TAB_INFO_MODAL_MARGIN), maxTop));
-
-    return { x, y, width, height };
-  }
-
-  return mainBounds;
-}
-
-function syncFloatingModalWindowBounds() {
-  if (!floatingModalWindow || floatingModalWindow.isDestroyed()) return;
-  const bounds = getFloatingModalWindowBounds();
-  if (!bounds) return;
-  floatingModalWindow.setBounds(bounds, false);
-}
-
-function buildFloatingModalState(type, payload = {}) {
-  return {
-    type,
-    payload,
-    windowBounds: getFloatingModalWindowBounds(type, payload)
-  };
-}
-
-function sendFloatingModalState() {
-  if (!floatingModalWindow || floatingModalWindow.isDestroyed() || !floatingModalLoaded || !floatingModalState) return;
-  floatingModalWindow.webContents.send('floating-modal-state', floatingModalState);
-}
-
-function ensureFloatingModalWindow() {
-  if (floatingModalWindow && !floatingModalWindow.isDestroyed()) {
-    syncFloatingModalWindowBounds();
-    return floatingModalWindow;
-  }
-
-  const bounds = getFloatingModalWindowBounds();
-  if (!bounds) return null;
-
-  floatingModalLoaded = false;
-  floatingModalWindow = new BrowserWindow({
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
-    show: false,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    movable: false,
-    fullscreenable: false,
-    skipTaskbar: true,
-    parent: mainWindow,
-    modal: false,
-    focusable: true,
-    hasShadow: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'modal-preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-      backgroundThrottling: false
-    }
-  });
-
-  floatingModalWindow.setMenuBarVisibility(false);
-  floatingModalWindow.loadFile(path.join(__dirname, 'src', 'modal.html'));
-
-  floatingModalWindow.once('ready-to-show', () => {
-    syncFloatingModalWindowBounds();
-    sendFloatingModalState();
-    floatingModalWindow.show();
-    floatingModalWindow.focus();
-  });
-
-  floatingModalWindow.webContents.on('did-finish-load', () => {
-    floatingModalLoaded = true;
-    sendFloatingModalState();
-  });
-
-  floatingModalWindow.on('closed', () => {
-    floatingModalWindow = null;
-    floatingModalLoaded = false;
-    floatingModalState = null;
-  });
-
-  return floatingModalWindow;
-}
-
-function openFloatingModal(type, payload = {}) {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-
-  floatingModalState = buildFloatingModalState(type, payload);
-  const modalWindow = ensureFloatingModalWindow();
-  if (!modalWindow) return;
-
-  syncFloatingModalWindowBounds();
-
-  if (floatingModalLoaded) {
-    sendFloatingModalState();
-    modalWindow.show();
-    modalWindow.focus();
-  }
-}
-
-function closeFloatingModal() {
-  floatingModalState = null;
-  if (!floatingModalWindow || floatingModalWindow.isDestroyed()) return;
-  floatingModalWindow.hide();
-}
-
-function toggleFloatingModal(config = {}) {
-  const type = config && typeof config.type === 'string' ? config.type : null;
-  const payload = config && typeof config.payload === 'object' ? config.payload : {};
-  if (!type) return;
-
-  const isSameTypeVisible =
-    floatingModalWindow &&
-    !floatingModalWindow.isDestroyed() &&
-    floatingModalWindow.isVisible() &&
-    floatingModalState &&
-    floatingModalState.type === type;
-
-  if (isSameTypeVisible) {
-    closeFloatingModal();
-    return;
-  }
-
-  openFloatingModal(type, payload);
-}
-
 function getAccountModeFromMainUrl(url) {
   const normalizedUrl = (url || '').trim().toLowerCase();
 
@@ -520,7 +316,7 @@ function openManagedPopupWindow(url, partition = APP_SESSION_PARTITION) {
     show: true,
     autoHideMenuBar: true,
     backgroundColor: '#FFFFFF',
-    icon: path.join(__dirname, 'icons', 'icon.png'),
+    icon: path.join(__dirname, 'src', 'assets', 'icons', 'icon.png'),
     webPreferences: {
       partition,
       contextIsolation: true,
@@ -592,7 +388,7 @@ function inferFavoriteType(favorite = {}) {
 }
 
 function getFavoriteTypeIconPath(type = 'other') {
-  const iconsDir = path.join(__dirname, 'icons');
+  const iconsDir = path.join(__dirname, 'src', 'assets', 'icons');
   const iconNameByType = {
     word: 'word.png',
     excel: 'excel.png',
@@ -1234,7 +1030,7 @@ let tabManager = {
 
 // Crea la ventana principal y carga el HTML
 function createMainWindow() {
-  const initialBounds = getValidatedWindowBounds();
+  const initialBounds = mainWindowState.getValidatedWindowBounds();
   const shouldStartMaximized = configManager.getWindowMaximized();
 
   mainWindow = new BrowserWindow({
@@ -1244,9 +1040,9 @@ function createMainWindow() {
     height: initialBounds.height,
     minWidth: 900,
     minHeight: 650,
-    icon: path.join(__dirname, 'icons', 'icon.png'),
+    icon: path.join(__dirname, 'src', 'assets', 'icons', 'icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'src', 'preload', 'main-preload.js'),
       partition: APP_SESSION_PARTITION,
       contextIsolation: true,
       nodeIntegration: false,
@@ -1267,7 +1063,7 @@ function createMainWindow() {
     mainWindow.loadURL('http://localhost:3000');
     // mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, 'src', 'ui', 'main-window', 'index.html'));
   }
 
   // Mostrar la ventana cuando esté lista
@@ -1292,43 +1088,37 @@ function createMainWindow() {
 
   mainWindow.on('resize', () => {
     updateActiveTabBounds();
-    syncFloatingModalWindowBounds();
-    persistMainWindowState();
+    floatingModal.syncBounds();
+    mainWindowState.persist();
   });
 
   mainWindow.on('move', () => {
-    syncFloatingModalWindowBounds();
-    persistMainWindowState();
+    floatingModal.syncBounds();
+    mainWindowState.persist();
   });
 
   mainWindow.on('maximize', () => {
-    persistMainWindowState(true);
+    mainWindowState.persist(true);
     setTimeout(() => {
       updateActiveTabBounds();
-      syncFloatingModalWindowBounds();
+      floatingModal.syncBounds();
     }, 50);
   });
 
   mainWindow.on('unmaximize', () => {
-    persistMainWindowState(true);
+    mainWindowState.persist(true);
     setTimeout(() => {
       updateActiveTabBounds();
-      syncFloatingModalWindowBounds();
-      persistMainWindowState(true);
+      floatingModal.syncBounds();
+      mainWindowState.persist(true);
     }, 50);
   });
 
   mainWindow.on('closed', () => {
-    if (saveWindowStateTimeout) {
-      clearTimeout(saveWindowStateTimeout);
-      saveWindowStateTimeout = null;
-    }
+    mainWindowState.clearPending();
     hideTabDragGhost();
     stopTabDragGhostFollow();
-    closeFloatingModal();
-    if (floatingModalWindow && !floatingModalWindow.isDestroyed()) {
-      floatingModalWindow.close();
-    }
+    floatingModal.destroy();
     if (tabDragGhostWindow && !tabDragGhostWindow.isDestroyed()) {
       tabDragGhostWindow.close();
     }
@@ -1337,12 +1127,12 @@ function createMainWindow() {
   
   // Modificar el comportamiento al cerrar la ventana
   mainWindow.on('close', (event) => {
-    persistMainWindowState(true);
+    mainWindowState.persist(true);
 
     // En lugar de cerrar, ocultar la ventana si el tray está activo
     if (tray && !app.isQuitting) {
       event.preventDefault();
-      closeFloatingModal();
+      floatingModal.close();
       mainWindow.hide();
     } else {
       // Comportamiento normal de cierre si no hay tray o si se está saliendo
@@ -2084,18 +1874,18 @@ ipcMain.handle('toggle-maximize', () => {
 });
 
 ipcMain.on('toggle-floating-modal', (event, config) => {
-  toggleFloatingModal(config || {});
+  floatingModal.toggle(config || {});
 });
 
 ipcMain.on('open-floating-modal', (event, config) => {
   const type = config && typeof config.type === 'string' ? config.type : null;
   const payload = config && typeof config.payload === 'object' ? config.payload : {};
   if (!type) return;
-  openFloatingModal(type, payload);
+  floatingModal.open(type, payload);
 });
 
 ipcMain.on('close-floating-modal', () => {
-  closeFloatingModal();
+  floatingModal.close();
 });
 
 ipcMain.on('floating-tab-info:hover', (_event, payload = {}) => {
@@ -2112,12 +1902,12 @@ ipcMain.on('floating-tab-info:toggle-favorite', (_event, payload = {}) => {
 });
 
 ipcMain.on('floating-tab-info:detach', (_event, payload = {}) => {
-  closeFloatingModal();
+  floatingModal.close();
   detachTabToWindow(Number(payload.tabId));
 });
 
 ipcMain.handle('floating-modal:get-state', () => {
-  return floatingModalState;
+  return floatingModal.getState();
 });
 
 ipcMain.on('floating-modal:notify', (event, payload) => {
@@ -2203,7 +1993,7 @@ function showWebNotification(message, type = 'info') {
 
 // Crear el icono de la bandeja del sistema
 function createTray() {
-  const iconPath = path.join(__dirname, 'icons', 'icon.png');
+  const iconPath = path.join(__dirname, 'src', 'assets', 'icons', 'icon.png');
   tray = new Tray(iconPath);
 
   tray.setToolTip('O365 Linux Desktop');
@@ -2239,84 +2029,11 @@ if (!gotTheLock) {
   // Iniciar la aplicación una vez que esté lista
   app.whenReady().then(() => {
     const appSession = session.fromPartition(APP_SESSION_PARTITION);
-
-    // Configurar permisos para medios (cámara, micrófono)
-    appSession.setPermissionRequestHandler((webContents, permission, callback) => {
-      const allowedPermissions = [
-        'media',
-        'notifications',
-        'clipboard-read',
-        'clipboard-sanitized-write',
-        'clipboard-write',
-        'fullscreen'
-      ];
-      callback(allowedPermissions.includes(permission));
-    });
-
-    appSession.setPermissionCheckHandler((webContents, permission) => {
-      const allowedPermissions = [
-        'media',
-        'notifications',
-        'clipboard-read',
-        'clipboard-sanitized-write',
-        'clipboard-write',
-        'fullscreen'
-      ];
-      return allowedPermissions.includes(permission);
-    });
-
-    appSession.setDisplayMediaRequestHandler(
-      async (request, callback) => {
-        try {
-          const sources = await desktopCapturer.getSources({
-            types: ['screen', 'window'],
-            thumbnailSize: { width: 320, height: 180 },
-            fetchWindowIcons: true
-          });
-
-          if (!sources.length) {
-            callback({ video: null, audio: null });
-            return;
-          }
-
-          const preferredSource =
-            sources.find((source) => source.display_id && source.id.startsWith('screen:')) ||
-            sources.find((source) => source.id.startsWith('screen:')) ||
-            sources[0];
-
-          callback({
-            video: preferredSource,
-            audio: 'loopback'
-          });
-        } catch (error) {
-          console.error('Error al solicitar captura de pantalla:', error);
-          callback({ video: null, audio: null });
-        }
-      },
-      {
-        useSystemPicker: true
-      }
-    );
-    
-    // Interceptar clicks en links para decidir dónde abrirlos
-    appSession.webRequest.onBeforeRequest({
-      urls: ['*://*/*']
-    }, (details, callback) => {
-      // Solo procesar solicitudes iniciadas por usuario (clic en enlace)
-      if (details.resourceType === 'mainFrame' && details.method === 'GET') {
-        const url = details.url;
-        
-        // Verificar si el enlace debe abrirse internamente o externamente
-        if (!shouldOpenInternally(url)) {
-          // Cancelar la solicitud y abrir externamente
-          shell.openExternal(url);
-          callback({ cancel: true });
-          return;
-        }
-      }
-      
-      // Permitir la solicitud normalmente
-      callback({ cancel: false });
+    configureAppSession({
+      appSession,
+      desktopCapturer,
+      shell,
+      shouldOpenInternally
     });
 
     createMainWindow();

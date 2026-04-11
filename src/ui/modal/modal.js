@@ -34,13 +34,13 @@ const OUTLOOK_URLS = {
 };
 
 const APP_LAUNCHER_ITEMS = [
-  { id: 'word', label: 'Word', icon: '../icons/word.png', url: 'https://www.microsoft365.com/launch/word' },
-  { id: 'excel', label: 'Excel', icon: '../icons/excel.png', url: 'https://www.microsoft365.com/launch/excel' },
-  { id: 'powerpoint', label: 'PowerPoint', icon: '../icons/powerpoint.png', url: 'https://www.microsoft365.com/launch/powerpoint' },
-  { id: 'onedrive', label: 'OneDrive', icon: '../icons/onedrive.png', url: 'https://www.microsoft365.com/launch/onedrive' },
-  { id: 'outlook', label: 'Outlook', icon: '../icons/outlook.png', url: OUTLOOK_URLS.corporate },
-  { id: 'teams', label: 'Teams', icon: '../icons/teams.png', url: 'https://teams.live.com/v2/?utm_source=OfficeWeb' },
-  { id: 'onenote', label: 'OneNote', icon: '../icons/onenote.png', url: 'https://www.onenote.com/notebooks' }
+  { id: 'word', label: 'Word', icon: '../../assets/icons/word.png', url: 'https://www.microsoft365.com/launch/word' },
+  { id: 'excel', label: 'Excel', icon: '../../assets/icons/excel.png', url: 'https://www.microsoft365.com/launch/excel' },
+  { id: 'powerpoint', label: 'PowerPoint', icon: '../../assets/icons/powerpoint.png', url: 'https://www.microsoft365.com/launch/powerpoint' },
+  { id: 'onedrive', label: 'OneDrive', icon: '../../assets/icons/onedrive.png', url: 'https://www.microsoft365.com/launch/onedrive' },
+  { id: 'outlook', label: 'Outlook', icon: '../../assets/icons/outlook.png', url: OUTLOOK_URLS.corporate },
+  { id: 'teams', label: 'Teams', icon: '../../assets/icons/teams.png', url: 'https://teams.live.com/v2/?utm_source=OfficeWeb' },
+  { id: 'onenote', label: 'OneNote', icon: '../../assets/icons/onenote.png', url: 'https://www.onenote.com/notebooks' }
 ];
 
 function applyTheme(theme) {

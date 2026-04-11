@@ -650,7 +650,7 @@ function createTabElement(tab, isActive, index) {
   // Obtener ruta del ícono basado en URL/título
   const iconPath = getTabIconPath(tab.url, tab.fullTitle || tab.title);
   
-  // Si tenemos un ícono en la carpeta icons, usarlo
+  // Si tenemos un ícono de runtime, usarlo
   if (iconPath) {
     tabIcon.innerHTML = `<img src="${iconPath}" alt="" width="16" height="16">`;
   } else {
@@ -783,53 +783,53 @@ function getTabIconPath(url, title) {
 
   // Microsoft Word
   if (isWordFile) {
-    return '../icons/word.png';
+    return '../../assets/icons/word.png';
   }
   // Microsoft Excel
   else if (isExcelFile) {
-    return '../icons/excel.png';
+    return '../../assets/icons/excel.png';
   }
   // Microsoft PowerPoint
   else if (isPowerPointFile) {
-    return '../icons/powerpoint.png';
+    return '../../assets/icons/powerpoint.png';
   }
   // Microsoft OneNote
   else if (isOneNoteFile) {
-    return '../icons/onenote.png';
+    return '../../assets/icons/onenote.png';
   }
   // Microsoft OneDrive
   else if (isOneDriveFolder) {
-    return '../icons/onedrive.png';
+    return '../../assets/icons/onedrive.png';
   }
   // Microsoft Outlook
   else if (isOutlookPage) {
-    return '../icons/outlook.png';
+    return '../../assets/icons/outlook.png';
   }
   // Microsoft Teams
   else if (lowerUrl.includes('teams') || lowerTitle.includes('teams') ||
            lowerUrl.includes('equipo')) {
-    return '../icons/teams.png';
+    return '../../assets/icons/teams.png';
   }
   // Microsoft SharePoint
   else if (lowerUrl.includes('sharepoint') || lowerTitle.includes('sharepoint') ||
            lowerUrl.includes('/sites/') || lowerTitle.includes('sitio')) {
-    return '../icons/sharepoint.png';
+    return '../../assets/icons/sharepoint.png';
   }
   // Microsoft To Do
   else if (lowerUrl.includes('to-do') || lowerTitle.includes('to-do') ||
            lowerUrl.includes('to-do.office')) {
-    return '../icons/todo.png';
+    return '../../assets/icons/todo.png';
   }
   // Centro de administración
   else if (lowerUrl.includes('admin') || lowerTitle.includes('admin') ||
            lowerTitle.includes('administra') || lowerUrl.includes('/adminportal/') ||
            lowerUrl.includes('/admincenter/')) {
-    return '../icons/admin.png';
+    return '../../assets/icons/admin.png';
   }
   // Microsoft Copilot
   else if (lowerUrl.includes('copilot') || lowerTitle.includes('copilot') ||
            lowerUrl.includes('m365.cloud')) {
-    return '../icons/icon.png';
+    return '../../assets/icons/icon.png';
   }
   // Para otros casos, devolvemos null y se usará un ícono de Material Symbols
   else {
