@@ -3,6 +3,7 @@
 /dist
 package-lock.json
 
+
 # Ignorar archivos de configuración
 #config.json
 #secrets.env
