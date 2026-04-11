@@ -61,8 +61,12 @@ El proyecto incluye:
 ### Configuración y estado persistente
 - Modal flotante de configuración.
 - Configuración persistente para:
-  - URL principal
-  - User-Agent personalizado
+  - URL principal: define la página que se abrirá al iniciar la aplicación y la que se usará para crear o recrear la pestaña principal.
+  - User-Agent personalizado: permite cambiar cómo se identifica la aplicación ante los sitios web; no cambia la URL cargada. Si se deja vacío, la aplicación usa por defecto un User-Agent de Firefox en Linux.
+    Ejemplos útiles:
+    `Firefox (predeterminado actual)`: `Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0`
+    `Chrome en Linux`: `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36`
+    `Edge en Linux`: `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0`
   - tema (`system`, `light`, `dark`)
   - reapertura de pestañas/documentos al iniciar
 - Restauración opcional de pestañas al arrancar.
@@ -181,8 +185,8 @@ O365LinuxDesktop/
 
 La aplicación almacena configuración y estado mediante `electron-store`, incluyendo:
 - preferencias de tema
-- URL principal
-- User-Agent
+- URL principal: página de arranque y referencia para la pestaña principal
+- User-Agent: identificador del navegador que la app envía a los sitios web; si no se personaliza, actualmente se usa Firefox en Linux por defecto
 - favoritos
 - pestañas restaurables
 - estado y bounds de ventana
